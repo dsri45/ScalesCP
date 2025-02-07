@@ -10,7 +10,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text>swimming in savings!</Text>
+      <Text>swimming in savingsss!</Text>
       <Link href="/home" style={styles.button}>
         Go to Home screen
       </Link>
