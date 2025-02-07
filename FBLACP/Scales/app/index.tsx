@@ -14,6 +14,9 @@ export default function Index() {
       <Link href="/home" style={styles.button}>
         Go to Home screen
       </Link>
+      <Link href="/testing" style={styles.button}>
+        Go to Test screen
+      </Link>
     </View>
   );
 }
