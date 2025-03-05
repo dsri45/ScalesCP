@@ -65,6 +65,42 @@ function StackNavigator() {
           headerShadowVisible: false,
         }} 
       />
+<<<<<<< Updated upstream
+=======
+      <Stack.Screen name="index" options={{ title: 'Index' }} />
+       <Stack.Screen name="home" options={{ title: 'Home' }} />
+       <Stack.Screen name="entry" options={{ title: 'Entry' }} />
+       <Stack.Screen name="testing" options={{ title: 'Test' }} />
+       <Stack.Screen name="savings" options={{ title: 'Savings' }} />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={styles.container}>
+      <ThemeProvider>
+        <TransactionProvider>
+          <CurrencyProvider>
+            <StackNavigator />
+          </CurrencyProvider>
+        </TransactionProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
+    
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+
+/*export default function RootLayout() {
+  return (
+    <Stack>
+>>>>>>> Stashed changes
       <Stack.Screen name="index" options={{ title: 'Index' }} />
        <Stack.Screen name="home" options={{ title: 'Home' }} />
        <Stack.Screen name="entry" options={{ title: 'Entry' }} />

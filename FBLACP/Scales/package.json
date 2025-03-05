@@ -47,6 +47,9 @@
     "react-native-web": "^0.19.13",
     "react-native-webview": "13.12.5",
     "victory-native": "^37.3.6"
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   },
   "devDependencies": {
