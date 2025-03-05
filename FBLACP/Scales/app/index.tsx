@@ -11,8 +11,8 @@ export default function Index() {
       }}
     >
       <Text>swimming in savings!</Text>
-      <Link href="/home" style={styles.button}>
-        Go to Home screen
+      <Link href="/dashboard" style={styles.button}>
+        Go to Dashboard
       </Link>
     </View>
   );
