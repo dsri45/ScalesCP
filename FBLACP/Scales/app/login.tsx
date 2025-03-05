@@ -8,7 +8,7 @@ import GoogleSVG from '../assets/images/loginui/google.svg';
 import FacebookSVG from '../assets/images/loginui/facebook.svg';
 import TwitterSVG from '../assets/images/loginui/twitter.svg';
 
-const login = () => {
+const login = ({}) => {
     return (
         <SafeAreaView style={{ flex: 1, justifyContent: 'center' }}>
             <View style={{ paddingHorizontal: 25 }}>

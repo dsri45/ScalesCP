@@ -17,7 +17,7 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeDatabase();
+    initializeDatabase().catch(console.error);
   }, []);
 
   const initializeDatabase = async () => {
@@ -90,4 +90,4 @@ export function useTransactions() {
     throw new Error('useTransactions must be used within a TransactionProvider');
   }
   return context;
-} 
+}

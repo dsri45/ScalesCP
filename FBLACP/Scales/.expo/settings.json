@@ -1,3 +1,10 @@
 {
-  "urlRandomness": "qz4nl7s"
+  "urlRandomness": "qz4nl7s",
+  "dev": true,
+  "minify": false,
+  "https": false,
+  "scheme": null,
+  "hostType": "lan",
+  "lanType": "ip",
+  "devClient": false
 }

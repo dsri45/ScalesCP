@@ -1,5 +1,5 @@
 export const expenseCategories = [
-    'Food & Drinks',
+    'Food',
     'Shopping',
     'Transport',
     'Housing',

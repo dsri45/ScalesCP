@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, StyleSheet, TextInput, Pressable } from 'react-native';
+import { View, Text, Modal, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,15 +22,15 @@ export default function CurrencyConversionDialog({
   const [rate, setRate] = useState('1');
   const [error, setError] = useState('');
 
-const handleConfirm = () => {
-  const conversionRate = parseFloat(rate);
-  if (isNaN(conversionRate) || conversionRate <= 0) {
-    setError('Please enter a valid positive number');
-    return;
-  }
-  onConfirm(conversionRate);
-  setError('');
-};
+  const handleConfirm = () => {
+    const conversionRate = parseFloat(rate);
+    if (isNaN(conversionRate) || conversionRate <= 0) {
+      setError('Please enter a valid positive number');
+      return;
+    }
+    onConfirm(conversionRate);
+    setError('');
+  };
 
   return (
     <Modal
@@ -39,7 +39,10 @@ const handleConfirm = () => {
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={[styles.container, { backgroundColor: theme.surface }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.text.primary }]}>
@@ -109,7 +112,7 @@ const handleConfirm = () => {
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -214,4 +217,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+});

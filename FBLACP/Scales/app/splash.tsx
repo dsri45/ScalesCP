@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
@@ -16,6 +16,8 @@ export default function SplashScreen() {
   const { theme } = useTheme();
   const scale = useSharedValue(0.3);
   const opacity = useSharedValue(0);
+  const router = useRouter(); 
+
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -25,11 +27,11 @@ export default function SplashScreen() {
   useEffect(() => {
     scale.value = withSpring(1, { damping: 10 });
     opacity.value = withTiming(1, { duration: 1000 });
-
+  
     const timer = setTimeout(() => {
-      router.replace('/(tabs)/home');
+      router.replace('/home');
     }, 2000);
-
+  
     return () => clearTimeout(timer);
   }, []);
 

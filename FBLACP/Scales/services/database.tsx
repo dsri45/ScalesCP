@@ -1,8 +1,7 @@
 import * as SQLite from 'expo-sqlite';
-import { Platform } from 'react-native';
 
 // Open/create the database
-const db = SQLite.openDatabaseSync('budgetn.db');
+const db = SQLite.openDatabaseSync('Scales.db');
 
 // Types
 export interface Transaction {
@@ -19,7 +18,7 @@ export interface Transaction {
 // Initialize database
 export const initDatabase = async () => {
   try {
-    // First create table if it doesn't exist
+    // Create table if it doesn't exist
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS transactions (
         id TEXT PRIMARY KEY NOT NULL,
@@ -33,12 +32,11 @@ export const initDatabase = async () => {
       );
     `);
 
-    // Then check if we need to add new columns
+    // Check existing columns
     const tableInfo = await db.getAllAsync("PRAGMA table_info(transactions);");
     const columns = tableInfo.map((col: any) => col.name);
     
     if (!columns.includes('isRecurring')) {
-      // Add new columns if they don't exist
       await db.execAsync(`ALTER TABLE transactions ADD COLUMN isRecurring INTEGER DEFAULT 0;`);
       await db.execAsync(`ALTER TABLE transactions ADD COLUMN recurringType TEXT;`);
       await db.execAsync(`ALTER TABLE transactions ADD COLUMN recurringEndDate TEXT;`);
@@ -56,16 +54,20 @@ export const initDatabase = async () => {
 export const getTransactions = async (): Promise<Transaction[]> => {
   try {
     const result = await db.getAllAsync<any>('SELECT * FROM transactions ORDER BY date DESC;');
-    return result.map(row => ({
-      id: row.id,
-      title: row.title,
-      amount: row.amount,
-      date: row.date,
-      category: row.category,
-      isRecurring: row.isRecurring === 1,
-      recurringType: row.recurringType,
-      recurringEndDate: row.recurringEndDate
-    }));
+    
+    // Ensure result is properly formatted
+    return result
+      .filter(row => row) // Remove undefined/null entries
+      .map(row => ({
+        id: row.id,
+        title: row.title ?? "Untitled",
+        amount: row.amount ?? 0,
+        date: row.date ?? new Date().toISOString(),
+        category: row.category ?? "Uncategorized",
+        isRecurring: row.isRecurring === 1,
+        recurringType: row.recurringType ?? null,
+        recurringEndDate: row.recurringEndDate ?? null,
+      }));
   } catch (error) {
     console.error('Error fetching transactions:', error);
     throw error;
@@ -76,25 +78,17 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>): Prom
   try {
     const id = Math.random().toString(36).substr(2, 9);
     await db.runAsync(
-      `INSERT INTO transactions (
-        id, 
-        title, 
-        amount, 
-        date, 
-        category,
-        isRecurring,
-        recurringType,
-        recurringEndDate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO transactions (id, title, amount, date, category, isRecurring, recurringType, recurringEndDate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         id,
-        transaction.title,
-        transaction.amount,
-        transaction.date,
-        transaction.category,
+        transaction.title ?? "Untitled",
+        transaction.amount ?? 0,
+        transaction.date ?? new Date().toISOString(),
+        transaction.category ?? "Uncategorized",
         transaction.isRecurring ? 1 : 0,
-        transaction.recurringType || null,
-        transaction.recurringEndDate || null
+        transaction.recurringType ?? null,
+        transaction.recurringEndDate ?? null
       ]
     );
     return id;
@@ -117,13 +111,13 @@ export const updateTransaction = async (transaction: Transaction): Promise<void>
            recurringEndDate = ?
        WHERE id = ?;`,
       [
-        transaction.title,
-        transaction.amount,
-        transaction.date,
-        transaction.category,
+        transaction.title ?? "Untitled",
+        transaction.amount ?? 0,
+        transaction.date ?? new Date().toISOString(),
+        transaction.category ?? "Uncategorized",
         transaction.isRecurring ? 1 : 0,
-        transaction.recurringType || null,
-        transaction.recurringEndDate || null,
+        transaction.recurringType ?? null,
+        transaction.recurringEndDate ?? null,
         transaction.id
       ]
     );
@@ -142,5 +136,4 @@ export const deleteTransaction = async (id: string): Promise<void> => {
   }
 };
 
-// Add this export at the top of the file, after the imports
 export const getDatabase = () => db;
