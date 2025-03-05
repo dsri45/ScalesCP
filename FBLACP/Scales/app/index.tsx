@@ -1,4 +1,17 @@
+<<<<<<< Updated upstream
 import { Text, View, StyleSheet } from 'react-native';
+=======
+import { Redirect } from 'expo-router';
+
+console.log("Testing redirect");
+export default function Index() {
+  return <Redirect href="/splash" />;
+}
+
+
+
+/*import { Text, View, StyleSheet } from 'react-native';
+>>>>>>> Stashed changes
 import { Link } from 'expo-router';
 
 export default function Index() {
