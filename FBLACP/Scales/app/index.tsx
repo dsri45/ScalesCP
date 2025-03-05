@@ -1,4 +1,12 @@
-import { Text, View, StyleSheet } from 'react-native';
+import { Redirect } from 'expo-router';
+
+export default function Index() {
+  return <Redirect href="/splash" />;
+}
+
+
+
+/*import { Text, View, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
 
 export default function Index() {
@@ -36,4 +44,4 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     color: '#fff',
   },
-});
+}); */
