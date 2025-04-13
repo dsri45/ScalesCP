@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, GestureResponderEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, GestureResponderEvent, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import TransactionDetails from './TransactionDetails';
+import { Transaction } from '../services/database';
 
 interface TransactionItemProps {
   id: string;
@@ -15,6 +17,7 @@ interface TransactionItemProps {
   recurringEndDate?: string | null;
   isSwipeActive?: boolean;
   onPress?: () => void;
+  receiptImage?: string;
 }
 
 const COLORS = {
@@ -45,6 +48,7 @@ const COLORS = {
 };
 
 export default function TransactionItem({
+  id,
   title,
   amount,
   date,
@@ -53,11 +57,13 @@ export default function TransactionItem({
   recurringType,
   recurringEndDate,
   onPress,
+  receiptImage,
 }: TransactionItemProps) {
   const { theme, isDarkMode } = useTheme();
   const { currency } = useCurrency();
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
+  const [showDetails, setShowDetails] = useState(false);
   const SWIPE_THRESHOLD = 5;
 
   const handleTouchStart = (event: GestureResponderEvent) => {
@@ -68,90 +74,124 @@ export default function TransactionItem({
     touchEndX.current = event.nativeEvent.pageX;
     const swipeDistance = Math.abs(touchEndX.current - touchStartX.current);
     
-    if (swipeDistance < SWIPE_THRESHOLD && onPress) {
-      onPress();
+    if (swipeDistance < SWIPE_THRESHOLD) {
+      if (onPress) {
+        onPress();
+      } else {
+        setShowDetails(true);
+      }
     }
+  };
+
+  const handleCloseDetails = () => {
+    setShowDetails(false);
   };
 
   const isIncome = amount > 0;
   const colorScheme = isIncome ? COLORS.income : COLORS.expense;
   const colors = isDarkMode ? colorScheme.dark : colorScheme.light;
 
+  const transaction: Transaction = {
+    id,
+    title,
+    amount,
+    date,
+    category,
+    isRecurring,
+    recurringType,
+    recurringEndDate,
+    receiptImage,
+  };
+
   return (
-    <Pressable
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      style={({ pressed }) => [
-        styles.container,
-        {
-          backgroundColor: colors.background,
-          borderLeftWidth: 4,
-          borderLeftColor: colors.icon,
-          opacity: pressed ? 0.9 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          shadowColor: theme.shadowColor,
-        }
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={`Transaction: ${title}, Amount: ${amount > 0 ? 'Income' : 'Expense'} ${currency.symbol}${Math.abs(amount)}, Category: ${category}, Date: ${date}`}
-    >
-      <View style={styles.leftContent}>
-        <View style={[
-          styles.iconContainer,
+    <>
+      <Pressable
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={({ pressed }) => [
+          styles.container,
           {
-            backgroundColor: isDarkMode ? theme.background : '#fff',
+            backgroundColor: colors.background,
+            borderLeftWidth: 4,
+            borderLeftColor: colors.icon,
+            opacity: pressed ? 0.9 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
             shadowColor: theme.shadowColor,
           }
-        ]}>
-          <Ionicons 
-            name={isIncome ? "arrow-up" : "arrow-down"} 
-            size={20} 
-            color={colors.icon}
-          />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={[
-            styles.title,
-            { color: theme.text.primary }
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Transaction: ${title}, Amount: ${amount > 0 ? 'Income' : 'Expense'} ${currency.symbol}${Math.abs(amount)}, Category: ${category}, Date: ${date}`}
+      >
+        <View style={styles.leftContent}>
+          <View style={[
+            styles.iconContainer,
+            {
+              backgroundColor: isDarkMode ? theme.background : '#fff',
+              shadowColor: theme.shadowColor,
+            }
           ]}>
-            {title}
-          </Text>
-          <View style={styles.detailsContainer}>
-            <Text style={[styles.category, { color: theme.text.secondary }]}>
-              {category}
+            <Ionicons 
+              name={isIncome ? "arrow-up" : "arrow-down"} 
+              size={20} 
+              color={colors.icon}
+            />
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={[
+              styles.title,
+              { color: theme.text.primary }
+            ]}>
+              {title}
             </Text>
-            {isRecurring && (
-              <View style={[styles.recurringBadge, { backgroundColor: theme.primary + '15' }]}>
-                <Ionicons 
-                  name="repeat" 
-                  size={12} 
-                  color={theme.primary}
-                  style={styles.recurringIcon}
-                />
-                <Text style={[styles.recurringText, { color: theme.primary }]}>
-                  {recurringType?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <View style={styles.detailsContainer}>
+              <Text style={[styles.category, { color: theme.text.secondary }]}>
+                {category}
+              </Text>
+              {isRecurring && (
+                <View style={[styles.recurringBadge, { backgroundColor: theme.primary + '15' }]}>
+                  <Ionicons 
+                    name="repeat" 
+                    size={12} 
+                    color={theme.primary}
+                    style={styles.recurringIcon}
+                  />
+                  <Text style={[styles.recurringText, { color: theme.primary }]}>
+                    {recurringType?.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
-      
-      <View style={styles.rightContent}>
-        <Text style={[
-          styles.amount,
-          { color: colors.text }
-        ]}>
-          {isIncome ? '+' : '-'}{currency.symbol}{Math.abs(amount).toFixed(2)}
-        </Text>
-        <Text style={[
-          styles.date,
-          { color: theme.text.secondary }
-        ]}>
-          {new Date(date).toLocaleDateString()}
-        </Text>
-      </View>
-    </Pressable>
+        
+        <View style={styles.rightContent}>
+          <Text style={[
+            styles.amount,
+            { color: colors.text }
+          ]}>
+            {isIncome ? '+' : '-'}{currency.symbol}{Math.abs(amount).toFixed(2)}
+          </Text>
+          <Text style={[
+            styles.date,
+            { color: theme.text.secondary }
+          ]}>
+            {new Date(date).toLocaleDateString()}
+          </Text>
+        </View>
+      </Pressable>
+
+      <Modal
+        visible={showDetails}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseDetails}
+      >
+        <TransactionDetails
+          transaction={transaction}
+          onClose={handleCloseDetails}
+        />
+      </Modal>
+    </>
   );
 }
 

@@ -38,6 +38,19 @@ function StackNavigator() {
         }} 
       />
       <Stack.Screen 
+        name="scanReceipt" 
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          headerTitle: 'Scan Receipt',
+          headerStyle: {
+            backgroundColor: theme.surface,
+          },
+          headerTintColor: theme.text.primary,
+          headerShadowVisible: false,
+        }} 
+      />
+      <Stack.Screen 
         name="currencySelect" 
         options={{
           presentation: 'modal',

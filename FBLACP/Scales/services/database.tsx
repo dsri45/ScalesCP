@@ -13,6 +13,8 @@ export interface Transaction {
   isRecurring?: boolean;
   recurringType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurringEndDate?: string | null;
+  receiptImage?: string | null;
+  comment?: string | null;
 }
 
 // Initialize database
@@ -28,7 +30,9 @@ export const initDatabase = async () => {
         category TEXT NOT NULL,
         isRecurring INTEGER DEFAULT 0,
         recurringType TEXT,
-        recurringEndDate TEXT
+        recurringEndDate TEXT,
+        receiptImage TEXT,
+        comment TEXT
       );
     `);
 
@@ -40,6 +44,14 @@ export const initDatabase = async () => {
       await db.execAsync(`ALTER TABLE transactions ADD COLUMN isRecurring INTEGER DEFAULT 0;`);
       await db.execAsync(`ALTER TABLE transactions ADD COLUMN recurringType TEXT;`);
       await db.execAsync(`ALTER TABLE transactions ADD COLUMN recurringEndDate TEXT;`);
+    }
+    
+    if (!columns.includes('receiptImage')) {
+      await db.execAsync(`ALTER TABLE transactions ADD COLUMN receiptImage TEXT;`);
+    }
+    
+    if (!columns.includes('comment')) {
+      await db.execAsync(`ALTER TABLE transactions ADD COLUMN comment TEXT;`);
     }
 
     console.log('Database initialized');
@@ -67,6 +79,8 @@ export const getTransactions = async (): Promise<Transaction[]> => {
         isRecurring: row.isRecurring === 1,
         recurringType: row.recurringType ?? null,
         recurringEndDate: row.recurringEndDate ?? null,
+        receiptImage: row.receiptImage ?? null,
+        comment: row.comment ?? null,
       }));
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -78,8 +92,8 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>): Prom
   try {
     const id = Math.random().toString(36).substr(2, 9);
     await db.runAsync(
-      `INSERT INTO transactions (id, title, amount, date, category, isRecurring, recurringType, recurringEndDate)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO transactions (id, title, amount, date, category, isRecurring, recurringType, recurringEndDate, receiptImage, comment)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         id,
         transaction.title ?? "Untitled",
@@ -88,7 +102,9 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>): Prom
         transaction.category ?? "Uncategorized",
         transaction.isRecurring ? 1 : 0,
         transaction.recurringType ?? null,
-        transaction.recurringEndDate ?? null
+        transaction.recurringEndDate ?? null,
+        transaction.receiptImage ?? null,
+        transaction.comment ?? null
       ]
     );
     return id;
@@ -108,7 +124,9 @@ export const updateTransaction = async (transaction: Transaction): Promise<void>
            category = ?,
            isRecurring = ?,
            recurringType = ?,
-           recurringEndDate = ?
+           recurringEndDate = ?,
+           receiptImage = ?,
+           comment = ?
        WHERE id = ?;`,
       [
         transaction.title ?? "Untitled",
@@ -118,6 +136,8 @@ export const updateTransaction = async (transaction: Transaction): Promise<void>
         transaction.isRecurring ? 1 : 0,
         transaction.recurringType ?? null,
         transaction.recurringEndDate ?? null,
+        transaction.receiptImage ?? null,
+        transaction.comment ?? null,
         transaction.id
       ]
     );

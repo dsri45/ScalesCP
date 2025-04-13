@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTransactions } from '../contexts/TransactionContext';
@@ -119,6 +119,14 @@ export default function TransactionForm() {
     }
   };
 
+  const handleAddTransaction = () => {
+    router.push('/transactionForm');
+  };
+
+  const handleScanReceipt = () => {
+    router.push('/scanReceipt');
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.form}>
@@ -139,7 +147,7 @@ export default function TransactionForm() {
             <View style={styles.typeContent}>
               <Ionicons 
                 name="arrow-down-circle" 
-                size={32}  // Increased size
+                size={32}
                 color={transactionType === 'expense' 
                   ? TRANSACTION_COLORS.expense.text.active 
                   : TRANSACTION_COLORS.expense.text.inactive
@@ -196,6 +204,16 @@ export default function TransactionForm() {
             </Text>
           </Pressable>
         </View>
+
+        {transactionType === 'expense' && (
+          <TouchableOpacity
+            style={[styles.scanButton, { backgroundColor: theme.primary }]}
+            onPress={handleScanReceipt}
+          >
+            <Ionicons name="camera" size={24} color="#fff" />
+            <Text style={styles.scanButtonText}>Scan Receipt</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={[
           styles.inputContainer,
@@ -419,4 +437,18 @@ const styles = StyleSheet.create({
   marginTop: 24,
   marginBottom: 16,
 },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  scanButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
 }); 
