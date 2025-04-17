@@ -32,7 +32,17 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+<<<<<<< HEAD
+      "expo-sqlite"
+=======
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan receipts."
+        }
       ]
+>>>>>>> d8105771b46106b56a8b2366682931a4b2ce5903
     ],
     "experiments": {
       "typedRoutes": true

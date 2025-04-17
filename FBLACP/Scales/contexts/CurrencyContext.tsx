@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, TextInput } from 'react-native';
+import { Alert } from 'react-native';
 import CurrencyConversionDialog from '../components/CurrencyConversionDialog';
 import { getDatabase } from '../services/database';
 import { useTransactions } from './TransactionContext';
@@ -87,6 +87,24 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     setShowConversionDialog(true);
   };
 
+  const convertExistingTransactions = async (newRate: number, oldRate: number) => {
+    try {
+      const db = getDatabase();
+      const transactions = await db.getAllAsync<any>('SELECT * FROM transactions;');
+      
+      for (const transaction of transactions) {
+        const convertedAmount = transaction.amount * (newRate / oldRate);
+        await db.runAsync(
+          'UPDATE transactions SET amount = ? WHERE id = ?;',
+          [convertedAmount, transaction.id]
+        );
+      }
+    } catch (error) {
+      console.error('Error converting transactions:', error);
+      throw error;
+    }
+  };
+
   const handleConversionConfirm = async (rate: number) => {
     if (!pendingCurrency) return;
     
@@ -132,28 +150,3 @@ export const useCurrency = () => {
   }
   return context;
 };
-
-interface Transaction {
-  id: number;
-  amount: number;
-}
-
-async function convertExistingTransactions(newRate: number, oldRate: number) {
-  try {
-    const db = getDatabase();
-    const transactions = await db.getAllAsync('SELECT * FROM transactions') as Transaction[];
-    
-    for (const transaction of transactions) {
-      const newAmount = transaction.amount * newRate;
-      
-      await db.runAsync(
-        'UPDATE transactions SET amount = ? WHERE id = ?',
-        [newAmount, transaction.id]
-      );
-    }
-  } catch (error) {
-    console.error('Error converting transactions:', error);
-    Alert.alert('Error', 'Failed to convert transactions');
-    throw error;
-  }
-}

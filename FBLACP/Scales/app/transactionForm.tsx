@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
-import { useTransactions } from '../contexts/TransactionContext';
+import { useTransactions, TransactionFormData } from '../contexts/TransactionContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import RecurringTransactionSettings from '../components/RecurringTransactionSettings';
-
-const expenseCategories = [
-  'Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Other'
-];
-
-const incomeCategories = [
-  'Salary', 'Freelance', 'Investment', 'Gift', 'Other'
-];
+import { Transaction } from '../services/database';
+import { expenseCategories, incomeCategories } from '../constants/categories';
 
 const TRANSACTION_COLORS = {
   expense: {
@@ -47,17 +40,10 @@ export default function TransactionForm() {
     ? transactions.find(t => t.id === params.transactionId)
     : null;
 
-  const [title, setTitle] = useState(existingTransaction?.title || '');
+  const [description, setDescription] = useState(existingTransaction?.description || '');
   const [amount, setAmount] = useState(existingTransaction ? Math.abs(existingTransaction.amount).toString() : '');
   const [category, setCategory] = useState(existingTransaction?.category || 'Other');
   const [date, setDate] = useState(existingTransaction ? new Date(existingTransaction.date) : new Date());
-  const [isRecurring, setIsRecurring] = useState(existingTransaction?.isRecurring || false);
-  const [recurringType, setRecurringType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | undefined>(
-    existingTransaction?.recurringType
-  );
-  const [recurringEndDate, setRecurringEndDate] = useState<string | null>(
-    existingTransaction?.recurringEndDate || null
-  );
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>(
     existingTransaction ? (existingTransaction.amount < 0 ? 'expense' : 'income') : 'expense'
   );
@@ -70,7 +56,7 @@ export default function TransactionForm() {
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     
-    if (!title.trim()) newErrors.title = 'Title is required';
+    if (!description.trim()) newErrors.description = 'Description is required';
     if (!amount.trim()) newErrors.amount = 'Amount is required';
     if (isNaN(parseFloat(amount))) newErrors.amount = 'Amount must be a valid number';
     
@@ -82,19 +68,21 @@ export default function TransactionForm() {
     if (!validateForm()) return;
 
     try {
-      const transactionData = {
-        title,
+      const transactionData: TransactionFormData = {
         amount: parseFloat(amount) * (transactionType === 'expense' ? -1 : 1),
-        date: date.toISOString().split('T')[0],
+        type: transactionType,
         category,
-        isRecurring,
-        recurringType: isRecurring ? recurringType : undefined,
-        recurringEndDate: isRecurring ? recurringEndDate : null,
+        description,
+        date: date.toISOString().split('T')[0],
       };
 
       if (isEditMode && params.transactionId) {
+        const existingTransaction = transactions.find(t => t.id === params.transactionId);
+        if (!existingTransaction) {
+          throw new Error('Transaction not found');
+        }
         await updateTransaction({
-          id: params.transactionId,
+          ...existingTransaction,
           ...transactionData,
         });
       } else {
@@ -119,6 +107,14 @@ export default function TransactionForm() {
     }
   };
 
+  const handleAddTransaction = () => {
+    router.push('/transactionForm');
+  };
+
+  const handleScanReceipt = () => {
+    router.push('/scanReceipt');
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.form}>
@@ -130,8 +126,10 @@ export default function TransactionForm() {
                 backgroundColor: transactionType === 'expense' 
                   ? TRANSACTION_COLORS.expense.active 
                   : TRANSACTION_COLORS.expense.inactive,
-                borderWidth: transactionType === 'expense' ? 0 : 1,
-                transform: [{ scale: transactionType === 'expense' ? 1 : 0.95 }]
+                  borderColor: transactionType === 'expense' 
+                  ? TRANSACTION_COLORS.expense.active 
+                  : theme.border,
+                transform: [{ scale: transactionType === 'expense' ? 1 : 0.98 }]
               }
             ]}
             onPress={() => setTransactionType('expense')}
@@ -139,7 +137,7 @@ export default function TransactionForm() {
             <View style={styles.typeContent}>
               <Ionicons 
                 name="arrow-down-circle" 
-                size={32}  // Increased size
+                size={32}
                 color={transactionType === 'expense' 
                   ? TRANSACTION_COLORS.expense.text.active 
                   : TRANSACTION_COLORS.expense.text.inactive
@@ -174,28 +172,39 @@ export default function TransactionForm() {
             ]}
             onPress={() => setTransactionType('income')}
           >
-            <Ionicons 
-              name="arrow-up-circle" 
-              size={24} 
-              color={transactionType === 'income' 
-                ? TRANSACTION_COLORS.income.text.active 
-                : TRANSACTION_COLORS.income.text.inactive
-              } 
-              style={styles.typeIcon}
-            />
-            <Text style={[
-              styles.typeText,
-              { 
-                color: transactionType === 'income' 
+            <View style={styles.typeContent}>
+              <Ionicons 
+                name="arrow-up-circle" 
+                size={32}  // Increased size
+                color={transactionType === 'income' 
                   ? TRANSACTION_COLORS.income.text.active 
-                  : TRANSACTION_COLORS.income.text.inactive,
-                fontWeight: transactionType === 'income' ? '600' : '400'
-              }
-            ]}>
-              Income
-            </Text>
+                  : TRANSACTION_COLORS.income.text.inactive
+                } 
+              />
+              <Text style={[
+                styles.typeText,
+                { 
+                  color: transactionType === 'income' 
+                    ? TRANSACTION_COLORS.income.text.active 
+                    : TRANSACTION_COLORS.income.text.inactive,
+                  fontWeight: transactionType === 'income' ? '700' : '500'
+                }
+              ]}>
+                Income
+              </Text>
+            </View>
           </Pressable>
         </View>
+
+        {transactionType === 'expense' && (
+          <TouchableOpacity
+            style={[styles.scanButton, { backgroundColor: theme.primary }]}
+            onPress={handleScanReceipt}
+          >
+            <Ionicons name="camera" size={24} color="#fff" />
+            <Text style={styles.scanButtonText}>Scan Receipt</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={[
           styles.inputContainer,
@@ -216,10 +225,10 @@ export default function TransactionForm() {
           />
           <TextInput
             style={[styles.titleInput, { color: theme.text.primary }]}
-            placeholder="Transaction Title"
+            placeholder="Transaction Description"
             placeholderTextColor={theme.text.secondary}
-            value={title}
-            onChangeText={setTitle}
+            value={description}
+            onChangeText={setDescription}
           />
         </View>
 
@@ -275,20 +284,6 @@ export default function TransactionForm() {
             </Pressable>
           ))}
         </ScrollView>
-
-<View style={styles.sectionContainer}>
-  <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
-    Recurring Settings
-  </Text>
-  <RecurringTransactionSettings
-    isRecurring={isRecurring}
-    recurringType={recurringType}
-    recurringEndDate={recurringEndDate}
-    onRecurringChange={setIsRecurring}
-    onRecurringTypeChange={setRecurringType}
-    onEndDateChange={setRecurringEndDate}
-  />
-</View>
 
         <Pressable 
           style={[styles.button, { backgroundColor: theme.primary }]}
@@ -414,9 +409,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+<<<<<<< HEAD
+=======
 
   sectionContainer: {
   marginTop: 24,
   marginBottom: 16,
 },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  scanButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+>>>>>>> d8105771b46106b56a8b2366682931a4b2ce5903
 }); 

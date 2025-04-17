@@ -1,10 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { initDatabase, getTransactions, addTransaction, updateTransaction, deleteTransaction, Transaction } from '../services/database';
+import { initDatabase, getTransactions, addTransaction as dbAddTransaction, updateTransaction as dbUpdateTransaction, deleteTransaction as dbDeleteTransaction, Transaction } from '../services/database';
+import { useAuth } from './AuthContext';
+
+type TransactionFormData = {
+  amount: number;
+  type: string;
+  category: string;
+  description: string;
+  date: string;
+};
 
 interface TransactionContextType {
   transactions: Transaction[];
   isLoading: boolean;
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransaction: (transaction: TransactionFormData) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   refreshTransactions: () => Promise<void>;
@@ -15,10 +24,13 @@ const TransactionContext = createContext<TransactionContextType | undefined>(und
 export function TransactionProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
-    initializeDatabase().catch(console.error);
-  }, []);
+    if (user) {
+      initializeDatabase().catch(console.error);
+    }
+  }, [user]);
 
   const initializeDatabase = async () => {
     try {
@@ -32,17 +44,23 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshTransactions = async () => {
+    if (!user) return;
     try {
-      const data = await getTransactions();
+      const data = await getTransactions(user.id);
       setTransactions(data);
     } catch (error) {
       console.error('Error refreshing transactions:', error);
     }
   };
 
-  const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+  const handleAddTransaction = async (transaction: TransactionFormData) => {
+    if (!user) return;
     try {
-      await addTransaction(transaction);
+      const newTransaction = {
+        ...transaction,
+        userId: user.id,
+      };
+      await dbAddTransaction(newTransaction);
       await refreshTransactions();
     } catch (error) {
       console.error('Error adding transaction:', error);
@@ -51,8 +69,9 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   const handleUpdateTransaction = async (transaction: Transaction) => {
+    if (!user) return;
     try {
-      await updateTransaction(transaction);
+      await dbUpdateTransaction(transaction);
       await refreshTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
@@ -61,8 +80,9 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   const handleDeleteTransaction = async (id: string) => {
+    if (!user) return;
     try {
-      await deleteTransaction(id);
+      await dbDeleteTransaction(id);
       await refreshTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
@@ -71,14 +91,16 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <TransactionContext.Provider value={{
-      transactions,
-      isLoading,
-      addTransaction: handleAddTransaction,
-      updateTransaction: handleUpdateTransaction,
-      deleteTransaction: handleDeleteTransaction,
-      refreshTransactions,
-    }}>
+    <TransactionContext.Provider
+      value={{
+        transactions,
+        isLoading,
+        addTransaction: handleAddTransaction,
+        updateTransaction: handleUpdateTransaction,
+        deleteTransaction: handleDeleteTransaction,
+        refreshTransactions,
+      }}
+    >
       {children}
     </TransactionContext.Provider>
   );
@@ -91,3 +113,5 @@ export function useTransactions() {
   }
   return context;
 }
+
+export type { TransactionFormData };

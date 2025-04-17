@@ -7,11 +7,13 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import Chart from '../../components/Chart';
 import TransactionItem from '../../components/TransactionItem';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Home() {
   const { theme } = useTheme();
-  const { transactions } = useTransactions();
+  const { user } = useAuth();
   const { currency } = useCurrency();
+  const { transactions } = useTransactions();
   const router = useRouter();
 
   // Calculate totals
@@ -47,7 +49,9 @@ export default function Home() {
         backgroundColor: theme.primary,
         paddingTop: Platform.OS === 'ios' ? 60 : 24
       }]}>
-        <Text style={[styles.greeting, { color: '#fff' }]}>Hello, User 👋</Text>
+        <Text style={[styles.greeting, { color: '#fff' }]}>
+          Hello, {user?.email.split('@')[0]} 👋
+        </Text>
         <Text style={[styles.date, { color: 'rgba(255,255,255,0.8)' }]}>
           {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </Text>

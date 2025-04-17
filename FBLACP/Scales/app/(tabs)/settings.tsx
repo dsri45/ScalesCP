@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 type SettingItemProps = {
   icon: { 
@@ -19,6 +20,16 @@ type SettingItemProps = {
 export default function Settings() {
   const { theme } = useTheme();
   const { currency } = useCurrency();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to logout');
+    }
+  };
 
   const SettingItem = ({ icon, title, subtitle, onPress, children }: SettingItemProps) => (
     <Pressable
@@ -93,6 +104,20 @@ export default function Settings() {
             title="App Version"
             subtitle="1.0.0"
           />
+        </View>
+      </View>
+
+      {/* Account Section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text.secondary }]}>Account</Text>
+        <View style={[styles.sectionContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <SettingItem
+            icon={{ name: 'log-out', bg: '#F44336' }}
+            title="Logout"
+            onPress={handleLogout}
+          >
+            <Ionicons name="chevron-forward" size={20} color={theme.text.secondary} />
+          </SettingItem>
         </View>
       </View>
     </ScrollView>

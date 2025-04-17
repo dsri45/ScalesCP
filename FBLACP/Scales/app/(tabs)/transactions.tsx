@@ -14,9 +14,11 @@ type Transaction = {
   id: string;
   amount: number;
   category: string;
-  title: string;
+  description: string;
   date: string | Date;
-  // Add other properties your transaction object uses
+  type: string;
+  userId: string;
+  createdAt: string;
 };
 
 const { width } = Dimensions.get('window');
@@ -52,14 +54,41 @@ export default function Transactions() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const filteredTransactions = transactions.filter(transaction => {
-    if (selectedType !== 'all' && 
-        ((selectedType === 'income' && transaction.amount < 0) || 
-         (selectedType === 'expense' && transaction.amount > 0))) {
+    // First filter by search query if present
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesDescription = transaction.description.toLowerCase().includes(query);
+      const matchesCategory = transaction.category.toLowerCase().includes(query);
+      
+      if (!matchesDescription && !matchesCategory) {
+        return false;
+      }
+    }
+    
+    // Then filter by transaction type (income/expense)
+    if (selectedType === 'income' && transaction.amount <= 0) {
       return false;
     }
     
-    if (selectedCategory && transaction.category !== selectedCategory) {
+    if (selectedType === 'expense' && transaction.amount >= 0) {
       return false;
+    }
+    
+    // Finally filter by category if selected, with more flexible matching
+    if (selectedCategory) {
+      // Make case-insensitive and handle singular/plural variations
+      const transactionCategory = transaction.category.toLowerCase();
+      const filterCategory = selectedCategory.toLowerCase();
+      
+      // Check if categories match exactly or one is the singular/plural of the other
+      const singularFilterCategory = filterCategory.endsWith('s') ? filterCategory.slice(0, -1) : filterCategory;
+      const pluralFilterCategory = filterCategory.endsWith('s') ? filterCategory : filterCategory + 's';
+      
+      if (transactionCategory !== filterCategory && 
+          transactionCategory !== singularFilterCategory && 
+          transactionCategory !== pluralFilterCategory) {
+        return false;
+      }
     }
     
     return true;
@@ -189,7 +218,16 @@ export default function Transactions() {
             placeholderTextColor={theme.text.secondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color={theme.text.secondary} />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Filters */}
@@ -269,7 +307,7 @@ export default function Transactions() {
             >
               <TransactionItem
                 {...item}
-                title={item.title}
+                description={item.description}
                 date={typeof item.date === 'string' ? item.date : item.date.toISOString()}
                 onPress={() => handleEdit(item.id)}
               />
@@ -370,18 +408,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: '#FFF',
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
+    marginVertical: 8,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
+    marginRight: 8,
     fontSize: 16,
+    paddingVertical: 6,
   },
   listWrapper: {
     flex: 1,

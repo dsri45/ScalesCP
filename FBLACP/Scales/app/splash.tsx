@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
   withSpring, 
@@ -14,10 +15,10 @@ import Animated, {
 
 export default function SplashScreen() {
   const { theme } = useTheme();
+  const { user, isLoading } = useAuth();
   const scale = useSharedValue(0.3);
   const opacity = useSharedValue(0);
-  const router = useRouter(); 
-
+  const router = useRouter();
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -29,11 +30,17 @@ export default function SplashScreen() {
     opacity.value = withTiming(1, { duration: 1000 });
   
     const timer = setTimeout(() => {
-      router.replace('/home');
+      if (!isLoading) {
+        if (user) {
+          router.replace('/(tabs)/home');
+        } else {
+          router.replace('/login');
+        }
+      }
     }, 2000);
   
     return () => clearTimeout(timer);
-  }, []);
+  }, [user, isLoading]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
