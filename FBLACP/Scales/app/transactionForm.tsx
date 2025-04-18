@@ -90,16 +90,23 @@ export default function TransactionForm() {
         isRecurring,
         recurringType: isRecurring ? recurringType : undefined,
         recurringEndDate: isRecurring ? recurringEndDate : null,
+        userId: 'default-user' // Add default userId since we're not using authentication yet
       };
 
       if (isEditMode && params.transactionId) {
         await updateTransaction({
-          id: params.transactionId,
-          userId: existingTransaction?.userId || '', // Ensure userId is included
           ...transactionData,
+          id: params.transactionId,
+          userId: existingTransaction?.userId || 'default-user',
+          recurringType: transactionData.recurringType || undefined,
         });
-      } 
+      } else {
+        await addTransaction(transactionData);
+      }
 
+      // Add a short delay to ensure the database operation completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       router.back();
     } catch (error) {
       console.error('Error saving transaction:', error);
@@ -243,28 +250,55 @@ export default function TransactionForm() {
         <Pressable
           style={[styles.input, { 
             borderColor: theme.border,
-            backgroundColor: theme.surface
+            backgroundColor: theme.surface,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between'
           }]}
           onPress={() => setShowDatePicker(true)}
         >
           <Text style={{ color: theme.text.primary }}>
             {date.toLocaleDateString()}
           </Text>
+          <Ionicons name="calendar-outline" size={20} color={theme.text.primary} />
         </Pressable>
 
-        {showDatePicker && (
+        {showDatePicker && (Platform.OS === 'ios' ? (
+          <View style={[styles.datePickerContainer, { backgroundColor: theme.surface }]}>
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="inline"
+              minimumDate={new Date(1900, 0, 1)}
+              maximumDate={new Date(2100, 11, 31)}
+              onChange={(event, selectedDate) => {
+                if (selectedDate && !isNaN(selectedDate.getTime())) {
+                  setDate(selectedDate);
+                }
+              }}
+            />
+            <TouchableOpacity
+              style={[styles.doneButton, { backgroundColor: theme.primary }]}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
           <DateTimePicker
             value={date}
             mode="date"
             display="default"
+            minimumDate={new Date(1900, 0, 1)}
+            maximumDate={new Date(2100, 11, 31)}
             onChange={(event, selectedDate) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (selectedDate) {
+              setShowDatePicker(false);
+              if (selectedDate && event.type === 'set' && !isNaN(selectedDate.getTime())) {
                 setDate(selectedDate);
               }
             }}
           />
-        )}
+        ))}
 
         <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Categories</Text>
         <ScrollView 
@@ -450,4 +484,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-}); 
+  datePickerContainer: {
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+  },
+  doneButton: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\FBLACP",
+    "\\FBLACP\\Scales",
+    "\\FBLACP\\Scales\\app",
+    "\\FBLACP\\Scales\\app\\(tabs)",
+    "\\FBLACP\\Scales\\assets",
+    "\\FBLACP\\Scales\\components",
+    "\\FBLACP\\Scales\\constants",
+    "\\FBLACP\\Scales\\contexts",
+    "\\FBLACP\\Scales\\services"
+  ],
+  "SelectedNode": "\\FBLACP\\Scales\\app\\(tabs)\\home.tsx",
+  "PreviewInSolutionExplorer": false
+}

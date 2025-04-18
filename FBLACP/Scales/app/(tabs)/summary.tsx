@@ -122,6 +122,8 @@ export default function Summary() {
   const [endDate, setEndDate] = useState(new Date()); // Today
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [tempStartDate, setTempStartDate] = useState(new Date(new Date().setDate(1)));
+  const [tempEndDate, setTempEndDate] = useState(new Date());
 
   const [filteredTotals, setFilteredTotals] = useState<{
     income: number;
@@ -166,24 +168,36 @@ export default function Summary() {
   };
 
   const DateRangeSelector = () => {
-    const onStartChange = (event: any, selectedDate?: Date) => {
-      const currentDate = selectedDate || startDate;
+    const onStartChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
       if (Platform.OS === 'android') {
         setShowStartPicker(false);
-      }
-      if (selectedDate) {
-        setStartDate(currentDate);
+        if (selectedDate && event.type === 'set') {
+          setStartDate(selectedDate);
+        }
+      } else if (selectedDate) {
+        setTempStartDate(selectedDate);
       }
     };
   
-    const onEndChange = (event: any, selectedDate?: Date) => {
-      const currentDate = selectedDate || endDate;
+    const onEndChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
       if (Platform.OS === 'android') {
         setShowEndPicker(false);
+        if (selectedDate && event.type === 'set') {
+          setEndDate(selectedDate);
+        }
+      } else if (selectedDate) {
+        setTempEndDate(selectedDate);
       }
-      if (selectedDate) {
-        setEndDate(currentDate);
-      }
+    };
+  
+    const handleStartDone = () => {
+      setStartDate(tempStartDate);
+      setShowStartPicker(false);
+    };
+  
+    const handleEndDone = () => {
+      setEndDate(tempEndDate);
+      setShowEndPicker(false);
     };
   
     return (
@@ -219,7 +233,7 @@ export default function Summary() {
             {showStartPicker && (
               <View style={[styles.pickerContainer, { backgroundColor: theme.surface }]}>
                 <DateTimePicker
-                  value={startDate}
+                  value={tempStartDate}
                   mode="date"
                   display="inline"
                   onChange={onStartChange}
@@ -227,7 +241,7 @@ export default function Summary() {
                 />
                 <TouchableOpacity
                   style={[styles.doneButton, { backgroundColor: theme.primary }]}
-                  onPress={() => setShowStartPicker(false)}
+                  onPress={handleStartDone}
                 >
                   <Text style={styles.doneButtonText}>Done</Text>
                 </TouchableOpacity>
@@ -236,7 +250,7 @@ export default function Summary() {
             {showEndPicker && (
               <View style={[styles.pickerContainer, { backgroundColor: theme.surface }]}>
                 <DateTimePicker
-                  value={endDate}
+                  value={tempEndDate}
                   mode="date"
                   display="inline"
                   onChange={onEndChange}
@@ -245,7 +259,7 @@ export default function Summary() {
                 />
                 <TouchableOpacity
                   style={[styles.doneButton, { backgroundColor: theme.primary }]}
-                  onPress={() => setShowEndPicker(false)}
+                  onPress={handleEndDone}
                 >
                   <Text style={styles.doneButtonText}>Done</Text>
                 </TouchableOpacity>
@@ -298,7 +312,7 @@ export default function Summary() {
     }
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = useCallback(() => {
     const filtered = transactions.filter(t => {
       const transactionDate = new Date(t.date);
       return transactionDate >= startDate && transactionDate <= endDate;
@@ -316,7 +330,7 @@ export default function Summary() {
 
     setFilteredTotals(totals);
     setFilteredTransactions(filtered);
-  };
+  }, [startDate, endDate, transactions]);
 
   const totals = calculateTotals();
 
