@@ -52,17 +52,22 @@ export default function Transactions() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const filteredTransactions = transactions.filter(transaction => {
-    if (selectedType !== 'all' && 
-        ((selectedType === 'income' && transaction.amount < 0) || 
-         (selectedType === 'expense' && transaction.amount > 0))) {
-      return false;
-    }
-    
-    if (selectedCategory && transaction.category !== selectedCategory) {
-      return false;
-    }
-    
-    return true;
+    // First check if the transaction matches the search query
+    const matchesSearch = searchQuery
+      ? transaction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+
+    // Then check if it matches the selected type filter
+    const matchesType = selectedType === 'all' ? true :
+      selectedType === 'income' ? transaction.amount > 0 :
+      transaction.amount < 0;
+
+    // Finally check if it matches the selected category
+    const matchesCategory = selectedCategory ? transaction.category === selectedCategory : true;
+
+    // Return true only if all conditions are met
+    return matchesSearch && matchesType && matchesCategory;
   });
 
   const currentCategories = selectedType === 'income' ? incomeCategories : 
