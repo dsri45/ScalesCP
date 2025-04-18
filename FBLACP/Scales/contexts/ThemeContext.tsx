@@ -1,37 +1,58 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Define custom app colors
+export const COLORS = {
+  blue: '#1A5D9F',       // Main blue color (less bright)
+  orange: '#FF8C42',     // Orange accent color
+  green: '#66BB6A',      // Lighter green for income
+  red: '#EF5350',        // Lighter red for expenses
+  lightBg: '#F5F7FA',    // Light theme background
+  darkBg: '#121212',     // Dark theme background
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#EEEEEE',
+  darkGray: '#333333',
+};
+
 // Define theme colors and properties
 export const lightTheme: Theme = {
-  primary: '#007AFF',
-  background: '#F2F2F7',
-  surface: '#FFFFFF',
+  primary: COLORS.blue,
+  secondary: COLORS.orange,
+  background: COLORS.lightBg,
+  surface: COLORS.white,
   border: 'rgba(0,0,0,0.1)',
-  shadowColor: '#000000',
+  shadowColor: COLORS.black,
   text: {
-    primary: '#000000',
+    primary: COLORS.black,
     secondary: '#666666',
   },
   statusBar: 'dark',
-  shadow: '#000000',
+  shadow: COLORS.black,
+  income: COLORS.green,
+  expense: COLORS.red,
 };
 
 export const darkTheme: Theme = {
-  primary: '#0A84FF',
-  background: '#000000',
+  primary: COLORS.blue,
+  secondary: COLORS.orange,
+  background: COLORS.darkBg,
   surface: '#1C1C1E',
   border: 'rgba(255,255,255,0.1)',
-  shadowColor: '#FFFFFF',
+  shadowColor: COLORS.white,
   text: {
-    primary: '#FFFFFF',
+    primary: COLORS.white,
     secondary: '#EBEBF5',
   },
   statusBar: 'light',
-  shadow: '#FFFFFF',
+  shadow: COLORS.white,
+  income: COLORS.green,
+  expense: COLORS.red,
 };
 
 export type Theme = {
   primary: string;
+  secondary: string;
   background: string;
   surface: string;
   border: string;
@@ -42,6 +63,8 @@ export type Theme = {
   };
   statusBar: 'light' | 'dark';
   shadow: string;
+  income: string;
+  expense: string;
 };
 
 interface ThemeContextType {

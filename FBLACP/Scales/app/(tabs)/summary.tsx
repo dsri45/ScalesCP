@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, TouchableOpacity, Text, Alert, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, TouchableOpacity, Text, Alert, StyleSheet, ScrollView, Platform, Image } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -122,8 +122,7 @@ export default function Summary() {
   const [endDate, setEndDate] = useState(new Date()); // Today
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [tempStartDate, setTempStartDate] = useState(new Date(new Date().setDate(1)));
-  const [tempEndDate, setTempEndDate] = useState(new Date());
+  const [imageKey, setImageKey] = useState(0);
 
   const [filteredTotals, setFilteredTotals] = useState<{
     income: number;
@@ -168,36 +167,24 @@ export default function Summary() {
   };
 
   const DateRangeSelector = () => {
-    const onStartChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    const onStartChange = (event: any, selectedDate?: Date) => {
+      const currentDate = selectedDate || startDate;
       if (Platform.OS === 'android') {
         setShowStartPicker(false);
-        if (selectedDate && event.type === 'set') {
-          setStartDate(selectedDate);
-        }
-      } else if (selectedDate) {
-        setTempStartDate(selectedDate);
+      }
+      if (selectedDate) {
+        setStartDate(currentDate);
       }
     };
   
-    const onEndChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    const onEndChange = (event: any, selectedDate?: Date) => {
+      const currentDate = selectedDate || endDate;
       if (Platform.OS === 'android') {
         setShowEndPicker(false);
-        if (selectedDate && event.type === 'set') {
-          setEndDate(selectedDate);
-        }
-      } else if (selectedDate) {
-        setTempEndDate(selectedDate);
       }
-    };
-  
-    const handleStartDone = () => {
-      setStartDate(tempStartDate);
-      setShowStartPicker(false);
-    };
-  
-    const handleEndDone = () => {
-      setEndDate(tempEndDate);
-      setShowEndPicker(false);
+      if (selectedDate) {
+        setEndDate(currentDate);
+      }
     };
   
     return (
@@ -233,7 +220,7 @@ export default function Summary() {
             {showStartPicker && (
               <View style={[styles.pickerContainer, { backgroundColor: theme.surface }]}>
                 <DateTimePicker
-                  value={tempStartDate}
+                  value={startDate}
                   mode="date"
                   display="inline"
                   onChange={onStartChange}
@@ -241,7 +228,7 @@ export default function Summary() {
                 />
                 <TouchableOpacity
                   style={[styles.doneButton, { backgroundColor: theme.primary }]}
-                  onPress={handleStartDone}
+                  onPress={() => setShowStartPicker(false)}
                 >
                   <Text style={styles.doneButtonText}>Done</Text>
                 </TouchableOpacity>
@@ -250,7 +237,7 @@ export default function Summary() {
             {showEndPicker && (
               <View style={[styles.pickerContainer, { backgroundColor: theme.surface }]}>
                 <DateTimePicker
-                  value={tempEndDate}
+                  value={endDate}
                   mode="date"
                   display="inline"
                   onChange={onEndChange}
@@ -259,7 +246,7 @@ export default function Summary() {
                 />
                 <TouchableOpacity
                   style={[styles.doneButton, { backgroundColor: theme.primary }]}
-                  onPress={handleEndDone}
+                  onPress={() => setShowEndPicker(false)}
                 >
                   <Text style={styles.doneButtonText}>Done</Text>
                 </TouchableOpacity>
@@ -312,7 +299,7 @@ export default function Summary() {
     }
   };
 
-  const handleGenerateReport = useCallback(() => {
+  const handleGenerateReport = () => {
     const filtered = transactions.filter(t => {
       const transactionDate = new Date(t.date);
       return transactionDate >= startDate && transactionDate <= endDate;
@@ -330,7 +317,7 @@ export default function Summary() {
 
     setFilteredTotals(totals);
     setFilteredTransactions(filtered);
-  }, [startDate, endDate, transactions]);
+  };
 
   const totals = calculateTotals();
 
@@ -341,6 +328,14 @@ export default function Summary() {
       currencyDisplay: 'symbol',
     }).format(Math.abs(amount));
   };
+
+  const refreshGifAnimation = () => {
+    setImageKey(prev => prev + 1);
+  };
+
+  useEffect(() => {
+    // No animation in summary view
+  }, []);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -379,7 +374,6 @@ export default function Summary() {
             <View style={styles.totalItem}>
               <Text style={[styles.totalLabel, { color: theme.text.secondary }]}>Total Income</Text>
               <Text style={[styles.totalAmount, { color: '#4CAF50' }]}>
-
                 {formatAmount(filteredTotals.income)}
               </Text>
             </View>
@@ -387,7 +381,6 @@ export default function Summary() {
             <View style={styles.totalItem}>
               <Text style={[styles.totalLabel, { color: theme.text.secondary }]}>Total Expenses</Text>
               <Text style={[styles.totalAmount, { color: '#F44336' }]}>
-
                 {formatAmount(filteredTotals.expenses)}
               </Text>
             </View>
@@ -397,7 +390,6 @@ export default function Summary() {
               <Text style={[styles.totalAmount, { 
                 color: filteredTotals.balance >= 0 ? '#4CAF50' : '#F44336' 
               }]}>
-
                 {filteredTotals.balance >= 0 ? '' : '-'}
                 {formatAmount(Math.abs(filteredTotals.balance))}
               </Text>
@@ -420,7 +412,6 @@ export default function Summary() {
                   <Text style={[styles.transactionAmount, { 
                     color: t.amount >= 0 ? '#4CAF50' : '#F44336' 
                   }]}>
-
                     {t.amount >= 0 ? '' : '-'}
                     {formatAmount(Math.abs(t.amount))}
                   </Text>
@@ -600,5 +591,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
 });

@@ -17,11 +17,6 @@ export default function Chart() {
   const { theme } = useTheme();
   const [selectedSlice, setSelectedSlice] = useState<string | null>(null);
 
-  const CHART_COLORS = {
-    income: '#4CAF50',
-    expenses: '#F44336'
-  };
-
   // Calculate total income and expenses
   const totals = transactions.reduce(
     (acc, transaction) => {
@@ -40,8 +35,8 @@ export default function Chart() {
 
   // Format data for the chart
   const data: ChartData[] = [
-    { name: 'Income', amount: totals.income || 0.01, color: CHART_COLORS.income },
-    { name: 'Expenses', amount: totals.expenses || 0.01, color: CHART_COLORS.expenses }
+    { name: 'Income', amount: totals.income || 0.01, color: theme.income },
+    { name: 'Expenses', amount: totals.expenses || 0.01, color: theme.expense }
   ];
 
   const handleSlicePress = (name: string) => {
@@ -61,7 +56,7 @@ export default function Chart() {
           innerRadius={35}
           labelRadius={({ innerRadius }) => (typeof innerRadius === 'number' ? innerRadius + 30 : 30)}
           cornerRadius={6}
-          colorScale={Object.values(CHART_COLORS)}
+          colorScale={data.map(item => item.color)}
           animate={{
             duration: 800,
             easing: "cubic"
@@ -74,7 +69,7 @@ export default function Chart() {
             },
             data: {
               filter: `drop-shadow(0px 2px 4px ${theme.text.primary}15)`,
-              opacity: ({ datum }) => selectedSlice ? (selectedSlice === datum.name ? 1 : 0.6) : 1,  // Added opacity line
+              opacity: ({ datum }) => selectedSlice ? (selectedSlice === datum.name ? 1 : 0.6) : 1,
             }
           }}
           labels={({ datum }) => {
@@ -109,7 +104,10 @@ export default function Chart() {
             key={item.name}
             style={[
               styles.legendItem,
-              selectedSlice === item.name && styles.legendItemSelected
+              selectedSlice === item.name && [
+                styles.legendItemSelected, 
+                { backgroundColor: item.color + '15' }
+              ]
             ]}
             onPress={() => handleSlicePress(item.name)}
           >

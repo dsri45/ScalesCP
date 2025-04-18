@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { useGoal } from '../../contexts/GoalContext';
 
 type SettingItemProps = {
   icon: { 
@@ -19,6 +20,7 @@ type SettingItemProps = {
 export default function Settings() {
   const { theme } = useTheme();
   const { currency } = useCurrency();
+  const { currentGoal, setShowGoalModal } = useGoal();
 
   const SettingItem = ({ icon, title, subtitle, onPress, children }: SettingItemProps) => (
     <Pressable
@@ -60,6 +62,14 @@ export default function Settings() {
           >
             <Ionicons name="chevron-forward" size={20} color={theme.text.secondary} />
           </SettingItem>
+          <SettingItem
+            icon={{ name: 'wallet', bg: '#4CAF50' }}
+            title="Savings Goal"
+            subtitle={currentGoal ? `${currency.symbol}${currentGoal}` : 'Not set'}
+            onPress={() => setShowGoalModal(true)}
+          >
+            <Ionicons name="chevron-forward" size={20} color={theme.text.secondary} />
+          </SettingItem>
         </View>
       </View>
 
@@ -93,6 +103,22 @@ export default function Settings() {
             title="App Version"
             subtitle="1.0.0"
           />
+        </View>
+      </View>
+
+      {/* Account Section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text.secondary }]}>Account</Text>
+        <View style={[styles.sectionContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <SettingItem
+            icon={{ name: 'log-out', bg: '#F44336' }}
+            title="Sign Out"
+            onPress={() => {
+              router.replace('/login');
+            }}
+          >
+            <Ionicons name="chevron-forward" size={20} color={theme.text.secondary} />
+          </SettingItem>
         </View>
       </View>
     </ScrollView>

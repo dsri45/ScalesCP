@@ -3,7 +3,8 @@ import { SafeAreaView, View, Text, TextInput, TouchableOpacity, Alert } from 're
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
+import { useGoal } from '../contexts/GoalContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LoginSVG from '../assets/images/loginui/login.svg';
 import GoogleSVG from '../assets/images/loginui/google.svg';
@@ -16,6 +17,7 @@ const Login = ({ navigation }: any) => {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const { setShowGoalModal } = useGoal();
 
     const handleLogin = async () => {
         try {
@@ -28,6 +30,13 @@ const Login = ({ navigation }: any) => {
             if (user) {
                 Alert.alert('Success', `Welcome back, ${user.email}!`);
                 console.log('User Data:', user);
+
+                // Check if user has set a savings goal
+                const savedGoal = await AsyncStorage.getItem('savings_goal');
+                if (!savedGoal) {
+                    // If no goal is set, show the goal modal
+                    setShowGoalModal(true);
+                }
 
                 // Navigate to the home screen or dashboard
                 router.push({

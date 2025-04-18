@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, GestureResponderEvent, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, COLORS } from '../contexts/ThemeContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import TransactionDetails from './TransactionDetails';
 import { Transaction } from '../services/database';
@@ -19,33 +19,6 @@ interface TransactionItemProps {
   onPress?: () => void;
   receiptImage?: string;
 }
-
-const COLORS = {
-  income: {
-    light: {
-      icon: '#4CAF50',      // Green
-      background: '#E8F5E9', // Light green background
-      text: '#2E7D32'       // Darker green for text
-    },
-    dark: {
-      icon: '#66BB6A',      // Lighter green for dark mode
-      background: '#1B3320', // Dark green background
-      text: '#81C784'       // Lighter green for text
-    }
-  },
-  expense: {
-    light: {
-      icon: '#F44336',      // Red
-      background: '#FFEBEE', // Light red background
-      text: '#C62828'       // Darker red for text
-    },
-    dark: {
-      icon: '#EF5350',      // Lighter red for dark mode
-      background: '#321B1B', // Dark red background
-      text: '#EF9A9A'       // Lighter red for text
-    }
-  }
-};
 
 export default function TransactionItem({
   id,
@@ -88,8 +61,15 @@ export default function TransactionItem({
   };
 
   const isIncome = amount > 0;
-  const colorScheme = isIncome ? COLORS.income : COLORS.expense;
-  const colors = isDarkMode ? colorScheme.dark : colorScheme.light;
+  
+  // Get appropriate background color based on transaction type and theme
+  const getBgColor = () => {
+    if (isIncome) {
+      return isDarkMode ? 'rgba(102, 187, 106, 0.15)' : 'rgba(102, 187, 106, 0.1)';
+    } else {
+      return isDarkMode ? 'rgba(239, 83, 80, 0.15)' : 'rgba(239, 83, 80, 0.1)';
+    }
+  };
 
   const transaction: Transaction = {
     id,
@@ -101,6 +81,7 @@ export default function TransactionItem({
     recurringType,
     recurringEndDate,
     receiptImage,
+    userId: 'default-user',
   };
 
   return (
@@ -111,9 +92,9 @@ export default function TransactionItem({
         style={({ pressed }) => [
           styles.container,
           {
-            backgroundColor: colors.background,
+            backgroundColor: getBgColor(),
             borderLeftWidth: 4,
-            borderLeftColor: colors.icon,
+            borderLeftColor: isIncome ? theme.income : theme.expense,
             opacity: pressed ? 0.9 : 1,
             transform: [{ scale: pressed ? 0.98 : 1 }],
             shadowColor: theme.shadowColor,
@@ -133,7 +114,7 @@ export default function TransactionItem({
             <Ionicons 
               name={isIncome ? "arrow-up" : "arrow-down"} 
               size={20} 
-              color={colors.icon}
+              color={isIncome ? theme.income : theme.expense}
             />
           </View>
           <View style={styles.textContainer}>
@@ -148,14 +129,14 @@ export default function TransactionItem({
                 {category}
               </Text>
               {isRecurring && (
-                <View style={[styles.recurringBadge, { backgroundColor: theme.primary + '15' }]}>
+                <View style={[styles.recurringBadge, { backgroundColor: theme.secondary + '20' }]}>
                   <Ionicons 
                     name="repeat" 
                     size={12} 
-                    color={theme.primary}
+                    color={theme.secondary}
                     style={styles.recurringIcon}
                   />
-                  <Text style={[styles.recurringText, { color: theme.primary }]}>
+                  <Text style={[styles.recurringText, { color: theme.secondary }]}>
                     {recurringType?.charAt(0).toUpperCase()}
                   </Text>
                 </View>
@@ -167,7 +148,7 @@ export default function TransactionItem({
         <View style={styles.rightContent}>
           <Text style={[
             styles.amount,
-            { color: colors.text }
+            { color: isIncome ? theme.income : theme.expense }
           ]}>
             {isIncome ? '+' : '-'}{currency.symbol}{Math.abs(amount).toFixed(2)}
           </Text>

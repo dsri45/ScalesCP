@@ -3,8 +3,21 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { TransactionProvider } from '../contexts/TransactionContext';
 import { CurrencyProvider } from '../contexts/CurrencyContext';
+import { GoalProvider } from '../contexts/GoalContext';
 import { StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState } from 'react';
+
+interface GoalModalProps {
+  visible: boolean;
+}
+
+export function GoalModal({ visible }: GoalModalProps) {
+  if (!visible) return null; // Render nothing if not visible
+
+  // Component implementation
+}
 
 // Create a separate component for Stack configuration
 function StackNavigator() {
@@ -87,12 +100,30 @@ function StackNavigator() {
 }
 
 export default function RootLayout() {
+  const [showGoalModal, setShowGoalModal] = useState(false);
+
+  const handleLogin = async () => {
+    try {
+      // ... existing login logic ...
+      const hasGoal = await AsyncStorage.getItem('savings_goal');
+      if (!hasGoal) {
+        setShowGoalModal(true);
+      }
+      // ... continue with navigation ...
+    } catch (error) {
+      // ... error handling ...
+    }
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>
         <TransactionProvider>
           <CurrencyProvider>
-            <StackNavigator />
+            <GoalProvider>
+              <StackNavigator />
+              <GoalModal visible={showGoalModal} />
+            </GoalProvider>
           </CurrencyProvider>
         </TransactionProvider>
       </ThemeProvider>
