@@ -38,6 +38,12 @@
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan receipts."
         }
+      ],
+      [
+        "expo-file-system",
+        {
+          "filePermission": "Scales needs access to save PDF files."
+        }
       ]
     ],
     "experiments": {

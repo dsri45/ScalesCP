@@ -135,6 +135,18 @@ export default function Transactions() {
   // Add this state to track if a swipe is in progress
   const [isSwipeActive, setIsSwipeActive] = useState(false);
 
+  // Add this before the return statement
+  const totals = transactions.reduce((acc, t) => {
+    if (t.amount > 0) {
+      acc.income += t.amount;
+    } else {
+      acc.expenses += Math.abs(t.amount);
+    }
+    // Calculate the actual balance (can be negative)
+    acc.balance = acc.income - acc.expenses;
+    return acc;
+  }, { income: 0, expenses: 0, balance: 0 });
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Improved Summary Card */}
@@ -145,11 +157,11 @@ export default function Transactions() {
             <Text style={[styles.balanceLabel, { color: theme.text.secondary }]}>
               Total Balance
             </Text>
-            <Text style={[styles.balanceAmount, { color: theme.text.primary }]}>
-              {formatAmount(
-                transactions.reduce((sum, t) => sum + t.amount, 0),
-                currency
-              )}
+            <Text style={[styles.balanceAmount, { 
+              color: totals.balance >= 0 ? '#4CAF50' : '#F44336' 
+            }]}>
+              {totals.balance >= 0 ? '' : '-'}
+              {formatAmount(Math.abs(totals.balance), currency)}
             </Text>
           </View>
 
