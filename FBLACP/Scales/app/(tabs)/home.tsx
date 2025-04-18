@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, TouchableOpacity } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +8,43 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import Chart from '../../components/Chart';
 import TransactionItem from '../../components/TransactionItem';
 import { useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { getUserById } from '../../services/database'; // Import the function to fetch user by ID
 
 export default function Home() {
   const { theme } = useTheme();
-  const { transactions } = useTransactions();
+  const { setUserId, transactions } = useTransactions();
   const { currency } = useCurrency();
   const router = useRouter();
+  const { userId } = useLocalSearchParams(); // Retrieve the userId from the query parameters
+
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Fetch the user's email when the component mounts
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      if (userId) {
+        try {
+          const user = await getUserById(userId as string); // Fetch user by ID
+          if (user) {
+            setUserEmail(user.email); // Set the user's email
+          } else {
+            console.error('User not found');
+          }
+        } catch (error) {
+          console.error('Error fetching user:', error);
+        }
+      }
+    };
+
+    fetchUserEmail();
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      setUserId(userId as string);
+    }
+  }, [userId]);
 
   // Calculate totals
   const totals = transactions.reduce(
@@ -47,7 +79,9 @@ export default function Home() {
         backgroundColor: theme.primary,
         paddingTop: Platform.OS === 'ios' ? 60 : 24
       }]}>
-        <Text style={[styles.greeting, { color: '#fff' }]}>Hello, User 👋</Text>
+        <Text style={[styles.greeting, { color: '#fff' }]}>
+         Hello, {userEmail ? userEmail.split('@')[0] : 'User'} 
+        </Text>
         <Text style={[styles.date, { color: 'rgba(255,255,255,0.8)' }]}>
           {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </Text>
@@ -77,9 +111,8 @@ export default function Home() {
         </View>
       </View>
 
-          {/* Chart Section */}
-          <Chart /> 
-
+      {/* Chart Section */}
+      <Chart /> 
 
       {/* Add Transaction Button */}
       <TouchableOpacity 
@@ -100,6 +133,7 @@ export default function Home() {
           <TransactionItem
             key={transaction.id}
             {...transaction}
+            receiptImage={transaction.receiptImage ?? undefined}
           />
         ))}
       </View>

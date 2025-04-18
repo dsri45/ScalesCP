@@ -11,11 +11,17 @@ function StackNavigator() {
   const { theme } = useTheme();
   
   return (
-    <Stack>
+    <Stack initialRouteName="login"> {/* Set the initial route to "login" */}
       <Stack.Screen 
-        name="splash" 
+        name="login" 
         options={{ 
-          headerShown: false 
+          headerShown: false // Hide the header for the login screen
+        }} 
+      />
+      <Stack.Screen 
+        name="signup" 
+        options={{ 
+          headerShown: false // Hide the header for the signup screen
         }} 
       />
       <Stack.Screen 
@@ -91,7 +97,6 @@ export default function RootLayout() {
         </TransactionProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
-    
   );
 }
 
@@ -100,15 +105,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
-/*export default function RootLayout() {
-  return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: 'Index' }} />
-       <Stack.Screen name="home" options={{ title: 'Home' }} />
-       <Stack.Screen name="entry" options={{ title: 'Entry' }} />
-       <Stack.Screen name="testing" options={{ title: 'Test' }} />
-       <Stack.Screen name="savings" options={{ title: 'Savings' }} />
-    </Stack>
-  );
-}*/

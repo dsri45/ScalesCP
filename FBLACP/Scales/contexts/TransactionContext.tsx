@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { initDatabase, getTransactions, addTransaction, updateTransaction, deleteTransaction, Transaction } from '../services/database';
+import { initDatabase, getUserTransactions, addTransaction, updateTransaction, deleteTransaction, Transaction } from '../services/database';
 
 interface TransactionContextType {
   transactions: Transaction[];
   isLoading: boolean;
+  userId: string | null;
+  setUserId: (id: string) => void;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -12,18 +14,31 @@ interface TransactionContextType {
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
-export function TransactionProvider({ children }: { children: ReactNode }) {
+interface TransactionProviderProps {
+  children: ReactNode;
+}
+
+export function TransactionProvider({ children }: TransactionProviderProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     initializeDatabase().catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (userId) {
+      refreshTransactions();
+    }
+  }, [userId]);
+
   const initializeDatabase = async () => {
     try {
       await initDatabase();
-      await refreshTransactions();
+      if (userId) {
+        await refreshTransactions();
+      }
     } catch (error) {
       console.error('Error initializing:', error);
     } finally {
@@ -33,7 +48,8 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
 
   const refreshTransactions = async () => {
     try {
-      const data = await getTransactions();
+      if (!userId) return;
+      const data = await getUserTransactions(userId);
       setTransactions(data);
     } catch (error) {
       console.error('Error refreshing transactions:', error);
@@ -42,7 +58,8 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
 
   const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
-      await addTransaction(transaction);
+      if (!userId) throw new Error('User ID is required');
+      await addTransaction({ ...transaction, userId });
       await refreshTransactions();
     } catch (error) {
       console.error('Error adding transaction:', error);
@@ -52,6 +69,7 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
 
   const handleUpdateTransaction = async (transaction: Transaction) => {
     try {
+      if (!userId) throw new Error('User ID is required');
       await updateTransaction(transaction);
       await refreshTransactions();
     } catch (error) {
@@ -74,6 +92,8 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
     <TransactionContext.Provider value={{
       transactions,
       isLoading,
+      userId,
+      setUserId,
       addTransaction: handleAddTransaction,
       updateTransaction: handleUpdateTransaction,
       deleteTransaction: handleDeleteTransaction,
