@@ -95,11 +95,10 @@ export default function TransactionForm() {
       if (isEditMode && params.transactionId) {
         await updateTransaction({
           id: params.transactionId,
+          userId: existingTransaction?.userId || '', // Ensure userId is included
           ...transactionData,
         });
-      } else {
-        await addTransaction(transactionData);
-      }
+      } 
 
       router.back();
     } catch (error) {

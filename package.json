@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "expo-sqlite": "^15.1.2"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.12",
+    "typescript": "^5.3.3"
+  }
+}

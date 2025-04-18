@@ -52,17 +52,22 @@ export default function Transactions() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const filteredTransactions = transactions.filter(transaction => {
-    if (selectedType !== 'all' && 
-        ((selectedType === 'income' && transaction.amount < 0) || 
-         (selectedType === 'expense' && transaction.amount > 0))) {
-      return false;
-    }
-    
-    if (selectedCategory && transaction.category !== selectedCategory) {
-      return false;
-    }
-    
-    return true;
+    // First check if the transaction matches the search query
+    const matchesSearch = searchQuery
+      ? transaction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+
+    // Then check if it matches the selected type filter
+    const matchesType = selectedType === 'all' ? true :
+      selectedType === 'income' ? transaction.amount > 0 :
+      transaction.amount < 0;
+
+    // Finally check if it matches the selected category
+    const matchesCategory = selectedCategory ? transaction.category === selectedCategory : true;
+
+    // Return true only if all conditions are met
+    return matchesSearch && matchesType && matchesCategory;
   });
 
   const currentCategories = selectedType === 'income' ? incomeCategories : 
@@ -130,6 +135,18 @@ export default function Transactions() {
   // Add this state to track if a swipe is in progress
   const [isSwipeActive, setIsSwipeActive] = useState(false);
 
+  // Add this before the return statement
+  const totals = transactions.reduce((acc, t) => {
+    if (t.amount > 0) {
+      acc.income += t.amount;
+    } else {
+      acc.expenses += Math.abs(t.amount);
+    }
+    // Calculate the actual balance (can be negative)
+    acc.balance = acc.income - acc.expenses;
+    return acc;
+  }, { income: 0, expenses: 0, balance: 0 });
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Improved Summary Card */}
@@ -140,11 +157,11 @@ export default function Transactions() {
             <Text style={[styles.balanceLabel, { color: theme.text.secondary }]}>
               Total Balance
             </Text>
-            <Text style={[styles.balanceAmount, { color: theme.text.primary }]}>
-              {formatAmount(
-                transactions.reduce((sum, t) => sum + t.amount, 0),
-                currency
-              )}
+            <Text style={[styles.balanceAmount, { 
+              color: totals.balance >= 0 ? '#4CAF50' : '#F44336' 
+            }]}>
+              {totals.balance >= 0 ? '' : '-'}
+              {formatAmount(Math.abs(totals.balance), currency)}
             </Text>
           </View>
 
