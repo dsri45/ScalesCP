@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView, View, Text, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useGoal } from '../contexts/GoalContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import LoginSVG from '../assets/images/loginui/login.svg';
 import GoogleSVG from '../assets/images/loginui/google.svg';
 import FacebookSVG from '../assets/images/loginui/facebook.svg';
 import TwitterSVG from '../assets/images/loginui/twitter.svg';
@@ -56,10 +55,10 @@ const Login = ({ navigation }: any) => {
         <SafeAreaView style={{ flex: 1, justifyContent: 'center' }}>
             <View style={{ paddingHorizontal: 25 }}>
                 <View style={{ alignItems: 'center' }}>
-                    <LoginSVG
-                        height={300}
-                        width={300}
-                        style={{ transform: [{ rotate: '-5deg' }] }} />
+                    <Image 
+                        source={require('../assets/Living_Fish.gif')}
+                        style={{ width: 300, height: 300 }}
+                    />
                 </View>
                 <Text style={{ fontFamily: 'SpaceMono-Regular', fontSize: 28, fontWeight: '500', color: '#333', marginBottom: 30 }}>Login</Text>
 
@@ -88,7 +87,7 @@ const Login = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity onPress={handleLogin} style={{ backgroundColor: '#AD40AF', padding: 20, borderRadius: 10, marginBottom: 30 }}>
+                <TouchableOpacity onPress={handleLogin} style={{ backgroundColor: '#1A5D9F', padding: 20, borderRadius: 10, marginBottom: 30 }}>
                     <Text style={{ textAlign: 'center', fontWeight: '700', fontSize: 16, color: '#fff' }}>Login</Text>
                 </TouchableOpacity>
 
@@ -110,7 +109,7 @@ const Login = ({ navigation }: any) => {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
                     <Text>New to the app?</Text>
                     <TouchableOpacity onPress={() => router.push('/signup')}>
-                     <Text style={{ color: '#AD40AF', fontWeight: '700' }}>Sign Up</Text>
+                     <Text style={{ color: '#1A5D9F', fontWeight: '700' }}>Sign Up</Text>
                     </TouchableOpacity>
                 </View>
 

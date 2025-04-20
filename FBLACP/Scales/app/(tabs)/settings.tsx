@@ -20,7 +20,7 @@ type SettingItemProps = {
 export default function Settings() {
   const { theme } = useTheme();
   const { currency } = useCurrency();
-  const { currentGoal, setShowGoalModal } = useGoal();
+  const { goalAmount, setShowGoalModal } = useGoal();
 
   const SettingItem = ({ icon, title, subtitle, onPress, children }: SettingItemProps) => (
     <Pressable
@@ -65,7 +65,7 @@ export default function Settings() {
           <SettingItem
             icon={{ name: 'wallet', bg: '#4CAF50' }}
             title="Savings Goal"
-            subtitle={currentGoal ? `${currency.symbol}${currentGoal}` : 'Not set'}
+            subtitle={goalAmount ? `${currency.symbol}${goalAmount}` : 'Not set'}
             onPress={() => setShowGoalModal(true)}
           >
             <Ionicons name="chevron-forward" size={20} color={theme.text.secondary} />
@@ -103,6 +103,14 @@ export default function Settings() {
             title="App Version"
             subtitle="1.0.0"
           />
+          <SettingItem
+            icon={{ name: 'help-circle', bg: '#2196F3' }}
+            title="How to Use Scales"
+            subtitle="App instructions and tips"
+            onPress={() => router.push('/instructions')}
+          >
+            <Ionicons name="chevron-forward" size={20} color={theme.text.secondary} />
+          </SettingItem>
         </View>
       </View>
 

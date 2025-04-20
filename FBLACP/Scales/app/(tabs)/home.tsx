@@ -27,7 +27,7 @@ const FISH_ANIMATIONS = {
   living: require('../../assets/Living_Fish.gif'),
   dead: require('../../assets/Dead_Fish.gif'),
   dying: require('../../assets/Living_To_Dead.gif'),
-  improving: require('../../assets/Living_Fish.gif'), // We don't have a Dead_To_Living animation
+  improving: require('../../assets/Living_Fish.gif'), // Using Living fish as the transition
   becoming_thriving: require('../../assets/Living_To_Thriving.gif'),
   thriving: require('../../assets/Thriving_Fish.gif')
 };
@@ -36,7 +36,7 @@ export default function Home() {
   const { theme } = useTheme();
   const { setUserId, transactions } = useTransactions();
   const { currency } = useCurrency();
-  const { currentGoal } = useGoal();
+  const { goalAmount: savedGoalAmount } = useGoal(); // Get goal from context with a different name
   const router = useRouter();
   const { userId } = useLocalSearchParams(); // Retrieve the userId from the query parameters
 
@@ -50,6 +50,9 @@ export default function Home() {
   const [hasShownThrivingTransition, setHasShownThrivingTransition] = useState(false);
   const thriveTransitionRef = useRef<NodeJS.Timeout | null>(null);
   const dieTransitionRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add a state to track the previous progress value for detecting changes
+  const [previousProgress, setPreviousProgress] = useState(0);
 
   // Fetch the user's email when the component mounts
   useEffect(() => {
@@ -92,7 +95,7 @@ export default function Home() {
   );
 
   // Calculate savings progress - don't cap at 100%
-  const goalAmount = currentGoal ? parseFloat(currentGoal) : 0;
+  const goalAmount = savedGoalAmount ? parseFloat(savedGoalAmount) : 0;
   const actualProgress = goalAmount > 0 ? (totals.balance / goalAmount) * 100 : 0;
   const savingsProgress = Math.max(0, actualProgress);
   const displayProgress = Math.min(100, savingsProgress); // For progress bar
@@ -121,6 +124,11 @@ export default function Home() {
 
   // Very simple state management for fish animation
   useEffect(() => {
+    console.log(`Current state: ${fishState}, Progress: ${actualProgress}%, Previous: ${previousProgress}%`);
+    
+    // Always save the current progress for next comparison
+    setPreviousProgress(actualProgress);
+    
     // Initialize state on first load
     if (!isInitialized && goalAmount > 0) {
       // Set initial state based on progress
@@ -145,6 +153,43 @@ export default function Home() {
       return;
     }
 
+    // Check if progress increased and fish was dead
+    const progressIncreased = actualProgress > previousProgress;
+    
+    // Force transition from DEAD to appropriate state if progress increased
+    if (progressIncreased && fishState === FishState.DEAD) {
+      console.log(`Progress increased from ${previousProgress}% to ${actualProgress}% while fish was DEAD`);
+      
+      // If increased above 150%, go to thriving
+      if (actualProgress >= 150) {
+        console.log("Dead fish becoming THRIVING due to large income");
+        setFishState(FishState.BECOMING_THRIVING);
+        setCurrentAnimation('becoming_thriving');
+        
+        thriveTransitionRef.current = setTimeout(() => {
+          console.log("Dead fish completed transition to THRIVING");
+          setFishState(FishState.THRIVING);
+          setCurrentAnimation('thriving');
+          setHasShownThrivingTransition(true);
+        }, 3000);
+        return;
+      }
+      
+      // If increased above 50% but below 150%, transition to living
+      if (actualProgress >= 50) {
+        console.log("Dead fish IMPROVING due to income");
+        setFishState(FishState.IMPROVING);
+        setCurrentAnimation('improving');
+        
+        setTimeout(() => {
+          console.log("Dead fish now LIVING");
+          setFishState(FishState.LIVING);
+          setCurrentAnimation('living');
+        }, 1000);
+        return;
+      }
+    }
+
     // Handle the case where we just crossed below 50%
     if (actualProgress < 50 && fishState !== FishState.DEAD && fishState !== FishState.DYING) {
       // Cancel any existing transition
@@ -167,8 +212,8 @@ export default function Home() {
     }
 
     // Handle the case where we just crossed above 150% and haven't shown the transition yet
-    if (actualProgress >= 150 && !hasShownThrivingTransition && 
-        fishState !== FishState.THRIVING && fishState !== FishState.BECOMING_THRIVING) {
+    if (actualProgress >= 150 && 
+        (fishState !== FishState.THRIVING && fishState !== FishState.BECOMING_THRIVING)) {
       // Cancel any existing transitions
       if (dieTransitionRef.current) {
         clearTimeout(dieTransitionRef.current);
@@ -193,7 +238,7 @@ export default function Home() {
 
     // Handle the case where we're between 50-150% (living)
     if (actualProgress >= 50 && actualProgress < 150 && 
-        fishState !== FishState.LIVING && fishState !== FishState.IMPROVING) {
+        (fishState !== FishState.LIVING && fishState !== FishState.IMPROVING)) {
       // Reset thriving flag if we drop below threshold
       if (hasShownThrivingTransition) {
         setHasShownThrivingTransition(false);
@@ -201,12 +246,14 @@ export default function Home() {
       
       // Transition from dead to living
       if (fishState === FishState.DEAD) {
+        console.log("Fish improving from DEAD to LIVING");
         setFishState(FishState.IMPROVING);
         setCurrentAnimation('improving');
         
         setTimeout(() => {
           setFishState(FishState.LIVING);
           setCurrentAnimation('living');
+          console.log("Fish now LIVING after being DEAD");
         }, 1000);
       } else {
         // Direct to living
@@ -214,7 +261,7 @@ export default function Home() {
         setCurrentAnimation('living');
       }
     }
-  }, [actualProgress, goalAmount, fishState, isInitialized, hasShownThrivingTransition]);
+  }, [actualProgress, goalAmount, fishState, isInitialized, hasShownThrivingTransition, previousProgress]);
 
   // Get fish status message based on state
   const getFishStatusMessage = () => {
@@ -273,37 +320,16 @@ export default function Home() {
       {/* Header Section with Fish GIF */}
       <View style={[styles.header, { 
         backgroundColor: theme.primary,
-        paddingTop: Platform.OS === 'ios' ? 50 : 30,
+        paddingTop: 0,
+        paddingHorizontal: 20,
         paddingBottom: Platform.OS === 'android' ? 30 : 25
       }]}>
-        <View style={styles.headerTextContainer}>
-          <Text style={[styles.greeting, { color: '#fff' }]}>
-            Hello, {userEmail ? userEmail.split('@')[0] : 'User'} 
-          </Text>
-          <Text style={[styles.date, { color: 'rgba(255,255,255,0.8)' }]}>
-            {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </Text>
-        </View>
-        
-        {/* Fish GIF in a box */}
-        <View style={styles.fishContainer}>
-          <View style={[
-            styles.fishBox, 
-            fishState === FishState.DEAD && { borderColor: 'rgba(239, 83, 80, 0.5)' },
-            fishState === FishState.DYING && { borderColor: theme.expense },
-            fishState === FishState.THRIVING && { borderColor: 'rgba(102, 187, 106, 0.7)' },
-            fishState === FishState.BECOMING_THRIVING && { borderColor: theme.income }
-          ]}>
-            {renderFishAnimation()}
-          </View>
-          <Text style={[
-            styles.fishStatus,
-            fishState === FishState.DYING && { color: theme.expense, fontWeight: 'bold' },
-            fishState === FishState.BECOMING_THRIVING && { color: theme.income, fontWeight: 'bold' },
-            fishState === FishState.THRIVING && { color: theme.income, fontWeight: 'bold' }
-          ]}>
-            {getFishStatusMessage()}
-          </Text>
+        {/* Fish GIF */}
+        <View style={[styles.fishContainer, { 
+          marginTop: Platform.OS === 'ios' ? -20 : -10,
+          paddingTop: 0
+        }]}>
+          {renderFishAnimation()}
         </View>
         
         <View style={styles.balanceContainer}>
@@ -317,36 +343,30 @@ export default function Home() {
           <View style={styles.progressContainer}>
             <View style={styles.progressLabelContainer}>
               <Text style={[styles.progressLabel, { color: '#fff' }]}>
-                Savings Goal Progress
+                Savings Goal: {currency.symbol}{goalAmount.toFixed(0)}
               </Text>
               <Text style={[
                 styles.progressPercentage, 
                 { 
                   color: actualProgress < 50 ? theme.expense : 
-                         actualProgress >= 150 ? theme.income : theme.secondary 
+                         actualProgress >= 150 ? theme.income : '#fff'
                 }
               ]}>
                 {savingsProgress.toFixed(0)}%
               </Text>
             </View>
-            <View style={[styles.progressBar, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <View style={[styles.progressBar, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
               <View 
                 style={[
                   styles.progressFill, 
                   { 
                     width: `${displayProgress}%`, 
                     backgroundColor: actualProgress < 50 ? theme.expense : 
-                                     actualProgress >= 150 ? theme.income : theme.secondary 
+                                     actualProgress >= 150 ? theme.income : '#fff'
                   }
                 ]} 
               />
             </View>
-            <Text style={[styles.goalValue, { color: 'rgba(255,255,255,0.9)' }]}>
-              {currency.symbol}{totals.balance.toFixed(2)} of {currency.symbol}{goalAmount.toFixed(2)}
-              {actualProgress >= 150 && ' (Exceeding goal!)'}
-            </Text>
-            {/* Add padding below progress bar */}
-            <View style={{ height: 10 }} />
           </View>
         )}
       </View>
@@ -424,51 +444,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    padding: 20,
     paddingBottom: 25,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-  },
-  headerTextContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  date: {
-    fontSize: 14,
   },
   fishContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 15,
   },
-  fishBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
   fishGif: {
-    width: 320,
-    height: 200,
-  },
-  fishStatus: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-    fontStyle: 'italic',
+    width: 360,
+    height: 240,
   },
   balanceContainer: {
     alignItems: 'center',
@@ -483,10 +470,10 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     width: '100%',
-    marginTop: 15,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   progressLabelContainer: {
     flexDirection: 'row',
@@ -494,25 +481,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   progressLabel: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '400',
   },
   progressPercentage: {
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
   },
   progressBar: {
-    height: 10,
-    borderRadius: 5,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 6,
   },
   progressFill: {
     height: '100%',
-  },
-  goalValue: {
-    fontSize: 14,
-    textAlign: 'right',
   },
   statsRow: {
     flexDirection: 'row',

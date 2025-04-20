@@ -39,7 +39,7 @@ const TRANSACTION_COLORS = {
 
 export default function TransactionForm() {
   const router = useRouter();
-  const { theme } = useTheme();
+  const { theme, isDarkMode } = useTheme();
   const { addTransaction, updateTransaction, deleteTransaction, transactions } = useTransactions();
   const params = useLocalSearchParams<{ transactionId?: string }>();
 
@@ -49,7 +49,7 @@ export default function TransactionForm() {
 
   const [title, setTitle] = useState(existingTransaction?.title || '');
   const [amount, setAmount] = useState(existingTransaction ? Math.abs(existingTransaction.amount).toString() : '');
-  const [category, setCategory] = useState(existingTransaction?.category || 'Other');
+  const [category, setCategory] = useState(existingTransaction?.category || '');
   const [date, setDate] = useState(existingTransaction ? new Date(existingTransaction.date) : new Date());
   const [isRecurring, setIsRecurring] = useState(existingTransaction?.isRecurring || false);
   const [recurringType, setRecurringType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | undefined>(
@@ -73,13 +73,44 @@ export default function TransactionForm() {
     if (!title.trim()) newErrors.title = 'Title is required';
     if (!amount.trim()) newErrors.amount = 'Amount is required';
     if (isNaN(parseFloat(amount))) newErrors.amount = 'Amount must be a valid number';
+    if (!category) newErrors.category = 'Category is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    // Validate the form and show specific errors
+    const hasEmptyCategory = !category || category === '';
+    
+    // Update errors for UI feedback
+    setErrors({
+      ...errors,
+      category: hasEmptyCategory ? 'Category is required' : ''
+    });
+    
+    if (!validateForm()) {
+      // Show specific alerts for missing fields
+      if (!title.trim()) {
+        Alert.alert(
+          'Missing Title',
+          'Please enter a title for your transaction.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      if (hasEmptyCategory) {
+        Alert.alert(
+          'Missing Category',
+          'Please select a category for your transaction.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      return;
+    }
 
     try {
       const transactionData = {
@@ -225,9 +256,12 @@ export default function TransactionForm() {
           styles.inputContainer,
           { 
             backgroundColor: theme.surface,
-            borderColor: transactionType === 'expense' 
-              ? TRANSACTION_COLORS.expense.active 
-              : TRANSACTION_COLORS.income.active,
+            borderWidth: 2,
+            borderColor: errors.title 
+              ? '#FF0000' 
+              : (transactionType === 'expense' 
+                  ? TRANSACTION_COLORS.expense.active 
+                  : TRANSACTION_COLORS.income.active)
           }
         ]}>
           <TextInput
@@ -253,22 +287,35 @@ export default function TransactionForm() {
             backgroundColor: theme.surface,
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            padding: 15,
+            borderRadius: 10,
+            borderWidth: 1
           }]}
           onPress={() => setShowDatePicker(true)}
         >
-          <Text style={{ color: theme.text.primary }}>
-            {date.toLocaleDateString()}
+          <Text style={{ 
+            color: theme.text.primary,
+            fontSize: 16,
+            fontWeight: '500'
+          }}>
+            Selected Date: {date.toLocaleDateString()}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color={theme.text.primary} />
+          <Ionicons name="calendar-outline" size={24} color={theme.primary} />
         </Pressable>
 
         {showDatePicker && (Platform.OS === 'ios' ? (
-          <View style={[styles.datePickerContainer, { backgroundColor: theme.surface }]}>
+          <View style={[styles.datePickerContainer, { 
+            backgroundColor: '#FFFFFF', 
+            padding: 16,
+            borderRadius: 12,
+            borderWidth: 2,
+            borderColor: theme.primary,
+          }]}>
             <DateTimePicker
               value={date}
               mode="date"
-              display="inline"
+              display="spinner"
               minimumDate={new Date(1900, 0, 1)}
               maximumDate={new Date(2100, 11, 31)}
               onChange={(event, selectedDate) => {
@@ -276,12 +323,20 @@ export default function TransactionForm() {
                   setDate(selectedDate);
                 }
               }}
+              textColor="#000000"
             />
             <TouchableOpacity
-              style={[styles.doneButton, { backgroundColor: theme.primary }]}
+              style={[styles.doneButton, { 
+                backgroundColor: theme.primary,
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 8
+              }]}
               onPress={() => setShowDatePicker(false)}
             >
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
+                Done
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -291,6 +346,7 @@ export default function TransactionForm() {
             display="default"
             minimumDate={new Date(1900, 0, 1)}
             maximumDate={new Date(2100, 11, 31)}
+            textColor="#000000"
             onChange={(event, selectedDate) => {
               setShowDatePicker(false);
               if (selectedDate && event.type === 'set' && !isNaN(selectedDate.getTime())) {
@@ -313,7 +369,8 @@ export default function TransactionForm() {
                 styles.categoryChip,
                 { 
                   backgroundColor: category === cat ? theme.primary : theme.surface,
-                  borderColor: theme.border
+                  borderColor: errors.category ? '#FF0000' : theme.border,
+                  borderWidth: errors.category ? 2 : 1
                 }
               ]}
               onPress={() => setCategory(cat)}
