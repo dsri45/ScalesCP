@@ -1,3 +1,14 @@
+/**
+ * Home Component
+ * 
+ * This component serves as the main dashboard of the application, featuring:
+ * - Current balance display
+ * - Savings goal progress with visual indicator
+ * - Income and expense statistics
+ * - Recent transactions list
+ * - Fish animation based on savings progress
+ */
+
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, TouchableOpacity, Image, Modal, Alert } from 'react-native';
 import { Link } from 'expo-router';
@@ -12,7 +23,16 @@ import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import { getUserById } from '../../services/database'; // Import the function to fetch user by ID
 
-// Fish animation states
+/**
+ * Fish animation states
+ * Represents different states of the fish based on savings progress:
+ * - LIVING: Normal state (50-150% of goal)
+ * - DYING: Transition to dead state
+ * - DEAD: Below 50% of goal
+ * - THRIVING: Above 150% of goal
+ * - IMPROVING: Transition from dead to living
+ * - BECOMING_THRIVING: Transition to thriving state
+ */
 enum FishState {
   LIVING = 'living',
   DYING = 'dying',
@@ -22,24 +42,29 @@ enum FishState {
   BECOMING_THRIVING = 'becoming_thriving'
 }
 
-// Animation source mapping
+/**
+ * Animation source mapping
+ * Maps each fish state to its corresponding GIF animation
+ */
 const FISH_ANIMATIONS = {
   living: require('../../assets/Living_Fish.gif'),
   dead: require('../../assets/Dead_Fish.gif'),
   dying: require('../../assets/Living_To_Dead.gif'),
-  improving: require('../../assets/Living_Fish.gif'), // Using Living fish as the transition
+  improving: require('../../assets/Living_Fish.gif'),
   becoming_thriving: require('../../assets/Living_To_Thriving.gif'),
   thriving: require('../../assets/Thriving_Fish.gif')
 };
 
 export default function Home() {
+  // Context hooks for theme, transactions, currency, and goals
   const { theme } = useTheme();
   const { setUserId, transactions } = useTransactions();
   const { currency } = useCurrency();
-  const { goalAmount: savedGoalAmount } = useGoal(); // Get goal from context with a different name
+  const { goalAmount: savedGoalAmount } = useGoal();
   const router = useRouter();
   const { userId } = useLocalSearchParams(); // Retrieve the userId from the query parameters
 
+  // State management
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [fishState, setFishState] = useState<FishState>(FishState.LIVING);
   const [currentAnimation, setCurrentAnimation] = useState<string>('living');
@@ -54,7 +79,9 @@ export default function Home() {
   // Add a state to track the previous progress value for detecting changes
   const [previousProgress, setPreviousProgress] = useState(0);
 
-  // Fetch the user's email when the component mounts
+  /**
+   * Fetch user email when component mounts
+   */
   useEffect(() => {
     const fetchUserEmail = async () => {
       if (userId) {
@@ -74,13 +101,21 @@ export default function Home() {
     fetchUserEmail();
   }, [userId]);
 
+  /**
+   * Set user ID in transaction context
+   */
   useEffect(() => {
     if (userId) {
       setUserId(userId as string);
     }
   }, [userId]);
 
-  // Calculate totals
+  /**
+   * Calculate transaction totals
+   * - income: Sum of positive transactions
+   * - expenses: Sum of negative transactions (absolute value)
+   * - balance: Income minus expenses
+   */
   const totals = transactions.reduce(
     (acc, transaction) => {
       if (transaction.amount > 0) {
@@ -94,13 +129,20 @@ export default function Home() {
     { balance: 0, income: 0, expenses: 0 }
   );
 
-  // Calculate savings progress - don't cap at 100%
+  /**
+   * Calculate savings progress
+   * - actualProgress: Raw percentage of goal achieved
+   * - savingsProgress: Minimum 0% progress
+   * - displayProgress: Capped at 100% for progress bar
+   */
   const goalAmount = savedGoalAmount ? parseFloat(savedGoalAmount) : 0;
   const actualProgress = goalAmount > 0 ? (totals.balance / goalAmount) * 100 : 0;
   const savingsProgress = Math.max(0, actualProgress);
   const displayProgress = Math.min(100, savingsProgress); // For progress bar
 
-  // Clean up timers on unmount
+  /**
+   * Clean up timers on component unmount
+   */
   useEffect(() => {
     return () => {
       if (thriveTransitionRef.current) {
@@ -112,26 +154,35 @@ export default function Home() {
     };
   }, []);
 
-  // Force GIF to reload by updating the key
+  /**
+   * Force GIF animation refresh by updating key
+   */
   const refreshAnimation = () => {
     setAnimationKey(Date.now());
   };
 
-  // Ensure animation updates whenever animation state changes
+  /**
+   * Update animation when state changes
+   */
   useEffect(() => {
     refreshAnimation();
   }, [currentAnimation]);
 
-  // Very simple state management for fish animation
+  /**
+   * Manage fish state based on savings progress
+   * Handles transitions between different states:
+   * - Dead (below 50%)
+   * - Living (50-150%)
+   * - Thriving (above 150%)
+   * Includes transition animations and timing
+   */
   useEffect(() => {
     console.log(`Current state: ${fishState}, Progress: ${actualProgress}%, Previous: ${previousProgress}%`);
     
-    // Always save the current progress for next comparison
     setPreviousProgress(actualProgress);
     
     // Initialize state on first load
     if (!isInitialized && goalAmount > 0) {
-      // Set initial state based on progress
       if (actualProgress < 50) {
         setFishState(FishState.DEAD);
         setCurrentAnimation('dead');
@@ -156,18 +207,13 @@ export default function Home() {
     // Check if progress increased and fish was dead
     const progressIncreased = actualProgress > previousProgress;
     
-    // Force transition from DEAD to appropriate state if progress increased
+    // Handle transitions based on progress changes
     if (progressIncreased && fishState === FishState.DEAD) {
-      console.log(`Progress increased from ${previousProgress}% to ${actualProgress}% while fish was DEAD`);
-      
-      // If increased above 150%, go to thriving
       if (actualProgress >= 150) {
-        console.log("Dead fish becoming THRIVING due to large income");
         setFishState(FishState.BECOMING_THRIVING);
         setCurrentAnimation('becoming_thriving');
         
         thriveTransitionRef.current = setTimeout(() => {
-          console.log("Dead fish completed transition to THRIVING");
           setFishState(FishState.THRIVING);
           setCurrentAnimation('thriving');
           setHasShownThrivingTransition(true);
@@ -175,14 +221,11 @@ export default function Home() {
         return;
       }
       
-      // If increased above 50% but below 150%, transition to living
       if (actualProgress >= 50) {
-        console.log("Dead fish IMPROVING due to income");
         setFishState(FishState.IMPROVING);
         setCurrentAnimation('improving');
         
         setTimeout(() => {
-          console.log("Dead fish now LIVING");
           setFishState(FishState.LIVING);
           setCurrentAnimation('living');
         }, 1000);
@@ -190,44 +233,36 @@ export default function Home() {
       }
     }
 
-    // Handle the case where we just crossed below 50%
+    // Handle transitions to dead state
     if (actualProgress < 50 && fishState !== FishState.DEAD && fishState !== FishState.DYING) {
-      // Cancel any existing transition
       if (thriveTransitionRef.current) {
         clearTimeout(thriveTransitionRef.current);
         thriveTransitionRef.current = null;
       }
       
-      console.log("Starting death transition");
       setFishState(FishState.DYING);
       setCurrentAnimation('dying');
       
       dieTransitionRef.current = setTimeout(() => {
         setFishState(FishState.DEAD);
         setCurrentAnimation('dead');
-        console.log("Completed death transition");
       }, 3000);
       
       return;
     }
 
-    // Handle the case where we just crossed above 150% and haven't shown the transition yet
+    // Handle transitions to thriving state
     if (actualProgress >= 150 && 
         (fishState !== FishState.THRIVING && fishState !== FishState.BECOMING_THRIVING)) {
-      // Cancel any existing transitions
       if (dieTransitionRef.current) {
         clearTimeout(dieTransitionRef.current);
         dieTransitionRef.current = null;
       }
       
-      console.log("Starting thriving transition");
-      
-      // Set both state and animation at the same time to avoid message/animation mismatch
       setFishState(FishState.BECOMING_THRIVING);
       setCurrentAnimation('becoming_thriving');
       
       thriveTransitionRef.current = setTimeout(() => {
-        console.log("Completed thriving transition");
         setFishState(FishState.THRIVING);
         setCurrentAnimation('thriving');
         setHasShownThrivingTransition(true);
@@ -236,38 +271,35 @@ export default function Home() {
       return;
     }
 
-    // Handle the case where we're between 50-150% (living)
+    // Handle living state
     if (actualProgress >= 50 && actualProgress < 150 && 
         (fishState !== FishState.LIVING && fishState !== FishState.IMPROVING)) {
-      // Reset thriving flag if we drop below threshold
       if (hasShownThrivingTransition) {
         setHasShownThrivingTransition(false);
       }
       
-      // Transition from dead to living
       if (fishState === FishState.DEAD) {
-        console.log("Fish improving from DEAD to LIVING");
         setFishState(FishState.IMPROVING);
         setCurrentAnimation('improving');
         
         setTimeout(() => {
           setFishState(FishState.LIVING);
           setCurrentAnimation('living');
-          console.log("Fish now LIVING after being DEAD");
         }, 1000);
       } else {
-        // Direct to living
         setFishState(FishState.LIVING);
         setCurrentAnimation('living');
       }
     }
   }, [actualProgress, goalAmount, fishState, isInitialized, hasShownThrivingTransition, previousProgress]);
 
-  // Get fish status message based on state
+  /**
+   * Get status message based on fish state
+   * @returns Appropriate message for current fish state
+   */
   const getFishStatusMessage = () => {
     if (goalAmount <= 0) return "Set a savings goal to track your progress!";
     
-    // Make messages synchronized with animation states
     if (currentAnimation === 'becoming_thriving') {
       return "Wow! Your fish is evolving as your savings excel!";
     }
@@ -288,18 +320,24 @@ export default function Home() {
     }
   };
 
-  // Get recent transactions
+  /**
+   * Get recent transactions sorted by date
+   */
   const recentTransactions = transactions
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
+  /**
+   * Navigate to transaction form
+   */
   const handleAddTransaction = () => {
     router.push('/transactionForm');
   };
 
-  // Android-specific animation workaround
+  /**
+   * Render fish animation with platform-specific handling
+   */
   const renderFishAnimation = () => {
-    // Get the correct animation source
     const animationSource = FISH_ANIMATIONS[currentAnimation as keyof typeof FISH_ANIMATIONS] || FISH_ANIMATIONS.living;
     
     return (

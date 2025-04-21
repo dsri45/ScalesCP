@@ -1,3 +1,10 @@
+/**
+ * Chart Component
+ * 
+ * A reusable component that displays a pie chart showing the distribution
+ * of income and expenses. Uses VictoryPie from victory-native for visualization.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import { VictoryPie, VictoryLabel } from 'victory-native';
@@ -6,18 +13,33 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const screenWidth = Dimensions.get('window').width;
 
+/**
+ * Interface for chart data points
+ */
 interface ChartData {
-  name: string;
-  amount: number;
-  color: string;
+  name: string;    // Category name (Income/Expenses)
+  amount: number;  // Amount value
+  color: string;   // Color for the pie slice
 }
 
+/**
+ * Chart Component
+ * 
+ * Displays a pie chart showing the proportion of income and expenses.
+ * Features:
+ * - Interactive slices that can be selected
+ * - Percentage labels
+ * - Animated transitions
+ * - Responsive design
+ */
 export default function Chart() {
   const { transactions } = useTransactions();
   const { theme } = useTheme();
   const [selectedSlice, setSelectedSlice] = useState<string | null>(null);
 
-  // Calculate total income and expenses
+  /**
+   * Calculate total income and expenses from transactions
+   */
   const totals = transactions.reduce(
     (acc, transaction) => {
       if (transaction.amount > 0) {
@@ -30,15 +52,22 @@ export default function Chart() {
     { income: 0, expenses: 0 }
   );
 
-  // Calculate total for percentage
+  // Calculate total for percentage calculations
   const total = totals.income + totals.expenses;
 
-  // Format data for the chart
+  /**
+   * Format data for the pie chart
+   * Uses minimum value of 0.01 to ensure slices are visible even with zero values
+   */
   const data: ChartData[] = [
     { name: 'Income', amount: totals.income || 0.01, color: theme.income },
     { name: 'Expenses', amount: totals.expenses || 0.01, color: theme.expense }
   ];
 
+  /**
+   * Handle slice selection
+   * @param name - Name of the selected slice
+   */
   const handleSlicePress = (name: string) => {
     setSelectedSlice(selectedSlice === name ? null : name);
   };
@@ -97,7 +126,7 @@ export default function Chart() {
         />
       </View>
 
-      {/* Simplified Legend */}
+      {/* Legend for the pie chart */}
       <View style={styles.legendContainer}>
         {data.map((item) => (
           <Pressable
@@ -122,6 +151,9 @@ export default function Chart() {
   );
 }
 
+/**
+ * Styles for the Chart component
+ */
 const styles = StyleSheet.create({
   container: {
     marginVertical: 16,

@@ -1,122 +1,106 @@
-import { expenseCategories } from '../constants/categories';
+/**
+ * ML Classification Service
+ * 
+ * This service provides receipt classification functionality using:
+ * - Machine learning model for category prediction
+ * - Fallback to simple keyword-based classification
+ * - Support for both income and expense categories
+ */
 
-// Define keyword mappings for each category
-const categoryKeywords = {
-  'Food': ['Dasani', 'Cookie', 'restaurant', 'cafe', 'food', 'meal', 'dining', 'coffee', 'lunch', 'dinner', 'breakfast', 'pizza', 'burger', 'sandwich', 'salad', 'drink', 'beverage', 'snack', 'dessert', 'ice cream', 'bakery', 'grocery', 'market', 'supermarket', 'convenience', 'store'],
-  'Transport': ['taxi', 'uber', 'lyft', 'transport', 'transit', 'bus', 'train', 'subway', 'fare', 'cab', 'ride', 'shuttle', 'parking', 'garage', 'toll', 'metro', 'railway', 'airport', 'terminal', 'flight', 'airline'],
-  'Shopping': ['store', 'market', 'shop', 'retail', 'mall', 'department', 'boutique', 'outlet', 'clothing', 'apparel', 'fashion', 'accessories', 'electronics', 'gadget', 'device', 'appliance', 'furniture', 'home', 'decor', 'beauty', 'cosmetics', 'pharmacy', 'drugstore', 'bookstore', 'office supplies'],
-  'Entertainment': ['movie', 'theatre', 'cinema', 'concert', 'event', 'ticket', 'show', 'performance', 'game', 'arcade', 'bowling', 'pool', 'club', 'bar', 'pub', 'nightclub', 'festival', 'exhibition', 'museum', 'gallery', 'park', 'attraction', 'admission', 'subscription', 'streaming', 'music', 'video'],
-  'Bills': ['bill', 'utility', 'subscription', 'service', 'payment', 'monthly', 'electric', 'water', 'gas', 'internet', 'phone', 'mobile', 'cable', 'tv', 'television', 'rent', 'mortgage', 'insurance', 'tax', 'fee', 'charge', 'account', 'statement', 'invoice', 'receipt'],
-  'Health': ['pharmacy', 'doctor', 'medical', 'health', 'clinic', 'hospital', 'dental', 'prescription', 'medicine', 'drug', 'vitamin', 'supplement', 'wellness', 'fitness', 'gym', 'yoga', 'therapy', 'counseling', 'psychiatrist', 'psychologist', 'optometrist', 'eye', 'vision', 'glasses', 'contact', 'lens'],
-  'Education': ['school', 'university', 'college', 'course', 'education', 'tuition', 'book', 'textbook', 'student', 'class', 'seminar', 'workshop', 'training', 'certification', 'degree', 'diploma', 'academic', 'library', 'study', 'research', 'project', 'assignment', 'exam', 'test', 'fee', 'registration'],
-  'Travel': ['hotel', 'flight', 'airline', 'travel', 'vacation', 'resort', 'lodging', 'accommodation', 'hostel', 'motel', 'inn', 'suite', 'room', 'booking', 'reservation', 'tour', 'excursion', 'sightseeing', 'adventure', 'cruise', 'car rental', 'vehicle', 'transportation', 'transfer', 'shuttle', 'guide'],
-  'Gifts': ['gift', 'present', 'donation', 'charity', 'contribution', 'card', 'greeting', 'celebration', 'birthday', 'anniversary', 'wedding', 'holiday', 'christmas', 'thanksgiving', 'easter', 'valentine', 'flower', 'bouquet', 'jewelry', 'watch', 'accessory', 'toy', 'game', 'book', 'art', 'craft']
+import { expenseCategories, incomeCategories } from '../constants/categories';
+
+// Keywords for simple classification fallback
+const categoryKeywords: { [key: string]: string[] } = {
+  'Food & Dining': ['restaurant', 'cafe', 'food', 'dining', 'meal', 'eat', 'drink', 'coffee', 'lunch', 'dinner'],
+  'Shopping': ['store', 'shop', 'mall', 'retail', 'purchase', 'buy', 'clothes', 'fashion', 'merchandise'],
+  'Transportation': ['taxi', 'uber', 'lyft', 'bus', 'train', 'subway', 'metro', 'transport', 'fare', 'gas', 'fuel'],
+  'Entertainment': ['movie', 'cinema', 'theater', 'concert', 'show', 'game', 'sports', 'event', 'ticket'],
+  'Bills & Utilities': ['bill', 'utility', 'electric', 'water', 'gas', 'internet', 'phone', 'cable', 'tv'],
+  'Healthcare': ['doctor', 'hospital', 'pharmacy', 'medical', 'health', 'dental', 'vision', 'insurance'],
+  'Education': ['school', 'university', 'college', 'tuition', 'book', 'course', 'education', 'learning'],
+  'Travel': ['hotel', 'flight', 'airline', 'vacation', 'travel', 'trip', 'lodging', 'accommodation'],
+  'Personal Care': ['salon', 'spa', 'beauty', 'hair', 'nails', 'gym', 'fitness', 'wellness'],
+  'Other': [] // Default category
 };
 
-// Feature extraction function
-const extractFeatures = (text: string): Record<string, number> => {
-  const lowerText = text.toLowerCase();
-  
-  // Initialize feature scores
-  const features: Record<string, number> = {};
-  
-  // Calculate feature scores for each category
-  Object.entries(categoryKeywords).forEach(([category, keywords]) => {
-    let score = 0;
-    
-    // Count keyword matches
-    keywords.forEach(keyword => {
-      if (lowerText.includes(keyword)) {
-        score += 1;
-      }
-    });
-    
-    // Add some weight to exact matches
-    keywords.forEach(keyword => {
-      if (lowerText === keyword) {
-        score += 2;
-      }
-    });
-    
-    // Add some weight to matches at the beginning of words
-    keywords.forEach(keyword => {
-      const regex = new RegExp(`\\b${keyword}`, 'i');
-      if (regex.test(lowerText)) {
-        score += 1.5;
-      }
-    });
-    
-    features[category] = score;
-  });
-  
-  return features;
-};
-
-// Simple neural network-like classification
-const classifyWithFeatures = (features: Record<string, number>): string => {
-  // Find the category with the highest score
-  let maxCategory = 'Other';
-  let maxScore = 0;
-  
-  Object.entries(features).forEach(([category, score]) => {
-    if (score > maxScore) {
-      maxScore = score;
-      maxCategory = category;
-    }
-  });
-  
-  // If no category has a significant score, return 'Other'
-  return maxScore > 0 ? maxCategory : 'Other';
-};
-
-// Classify receipt text using our custom algorithm
-export const classifyReceipt = async (text: string): Promise<string> => {
+/**
+ * Classify a receipt using machine learning model
+ * @param text - The text extracted from the receipt
+ * @returns The predicted category
+ */
+export async function classifyReceipt(text: string): Promise<string> {
   try {
-    // Extract features from the text
-    const features = extractFeatures(text);
-    
-    // Classify based on features
-    const category = classifyWithFeatures(features);
-    
-    return category;
+    // TODO: Implement actual ML model classification
+    // For now, we'll use the simple keyword-based classification
+    return classifyReceiptSimple(text);
   } catch (error) {
-    console.error('Error classifying receipt:', error);
-    return 'Other'; // Default to 'Other' if classification fails
+    console.error('Error with ML classification:', error);
+    // Fall back to simple classification
+    return classifyReceiptSimple(text);
   }
-};
+}
 
-// Alternative simpler classification method
-export const classifyReceiptSimple = (text: string): string => {
+/**
+ * Simple keyword-based receipt classification
+ * @param text - The text extracted from the receipt
+ * @returns The predicted category based on keyword matching
+ */
+export function classifyReceiptSimple(text: string): string {
+  // Convert text to lowercase for case-insensitive matching
   const lowerText = text.toLowerCase();
   
-  // Count keyword matches for each category
-  const categoryScores: Record<string, number> = {};
+  // Count matches for each category
+  const categoryMatches: { [key: string]: number } = {};
   
-  // Initialize scores
-  Object.keys(categoryKeywords).forEach(category => {
-    categoryScores[category] = 0;
+  // Initialize counts
+  expenseCategories.forEach(category => {
+    categoryMatches[category] = 0;
   });
-  
-  // Count matches
+
+  // Count keyword matches
   Object.entries(categoryKeywords).forEach(([category, keywords]) => {
     keywords.forEach(keyword => {
       if (lowerText.includes(keyword)) {
-        categoryScores[category]++;
+        categoryMatches[category]++;
       }
     });
   });
-  
-  // Find the category with the highest score
-  let maxCategory = 'Other';
-  let maxScore = 0;
-  
-  Object.entries(categoryScores).forEach(([category, score]) => {
-    if (score > maxScore) {
-      maxScore = score;
-      maxCategory = category;
+
+  // Find category with most matches
+  let maxMatches = 0;
+  let predictedCategory = 'Other';
+
+  Object.entries(categoryMatches).forEach(([category, matches]) => {
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      predictedCategory = category;
     }
   });
+
+  return predictedCategory;
+}
+
+/**
+ * Determine if a receipt is likely an income or expense
+ * @param text - The text extracted from the receipt
+ * @returns 'income' or 'expense'
+ */
+export function classifyReceiptType(text: string): 'income' | 'expense' {
+  const lowerText = text.toLowerCase();
   
-  // If no category has a score greater than 0, return 'Other'
-  return maxScore > 0 ? maxCategory : 'Other';
-}; 
+  // Keywords that might indicate income
+  const incomeKeywords = [
+    'salary', 'paycheck', 'income', 'deposit', 'transfer', 'refund',
+    'reimbursement', 'payment', 'invoice', 'bill', 'receipt'
+  ];
+
+  // Check for income keywords
+  for (const keyword of incomeKeywords) {
+    if (lowerText.includes(keyword)) {
+      return 'income';
+    }
+  }
+
+  // Default to expense
+  return 'expense';
+} 

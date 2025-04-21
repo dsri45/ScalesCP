@@ -1,141 +1,178 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+/**
+ * ThemeContext
+ * 
+ * This context manages the application's theme state and provides:
+ * - Light and dark theme support
+ * - Theme persistence
+ * - Theme switching functionality
+ * - Consistent color palette across the app
+ */
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useColorScheme } from 'react-native';
 
-// Define custom app colors
-export const COLORS = {
-  blue: '#1A5D9F',       // Main blue color (less bright)
-  orange: '#FF8C42',     // Orange accent color
-  green: '#66BB6A',      // Lighter green for income
-  red: '#EF5350',        // Lighter red for expenses
-  lightBg: '#F5F7FA',    // Light theme background
-  darkBg: '#121212',     // Dark theme background
-  white: '#FFFFFF',
-  black: '#000000',
-  lightGray: '#EEEEEE',
-  darkGray: '#333333',
-};
-
-// Define theme colors and properties
-export const lightTheme: Theme = {
-  primary: COLORS.blue,
-  secondary: COLORS.orange,
-  background: COLORS.lightBg,
-  surface: COLORS.white,
-  border: 'rgba(0,0,0,0.1)',
-  shadowColor: COLORS.black,
-  text: {
-    primary: COLORS.black,
-    secondary: '#666666',
-  },
-  statusBar: 'dark',
-  shadow: COLORS.black,
-  income: COLORS.green,
-  expense: COLORS.red,
-};
-
-export const darkTheme: Theme = {
-  primary: COLORS.blue,
-  secondary: COLORS.orange,
-  background: COLORS.darkBg,
-  surface: '#1C1C1E',
-  border: 'rgba(255,255,255,0.1)',
-  shadowColor: COLORS.white,
-  text: {
-    primary: COLORS.white,
-    secondary: '#EBEBF5',
-  },
-  statusBar: 'light',
-  shadow: COLORS.white,
-  income: COLORS.green,
-  expense: COLORS.red,
-};
-
-export type Theme = {
+/**
+ * Color palette for text elements
+ */
+interface TextColors {
   primary: string;
   secondary: string;
+}
+
+/**
+ * Complete theme interface defining all theme properties
+ */
+export interface Theme {
   background: string;
   surface: string;
-  border: string;
-  shadowColor: string;
-  text: {
-    primary: string;
-    secondary: string;
-  };
-  statusBar: 'light' | 'dark';
-  shadow: string;
+  primary: string;
   income: string;
   expense: string;
-};
+  border: string;
+  shadow?: string;
+  text: TextColors;
+}
 
+/**
+ * Available theme modes
+ */
+type ThemeMode = 'light' | 'dark';
+
+/**
+ * ThemeContext value interface
+ */
 interface ThemeContextType {
   theme: Theme;
-  isDarkMode: boolean;
+  themeMode: ThemeMode;
   toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+/**
+ * Create ThemeContext with default light theme
+ */
+const ThemeContext = createContext<ThemeContextType>({
+  theme: {
+    background: '#FFFFFF',
+    surface: '#F5F5F5',
+    primary: '#007AFF',
+    income: '#34C759',
+    expense: '#FF3B30',
+    border: '#E5E5EA',
+    text: {
+      primary: '#000000',
+      secondary: '#666666',
+    },
+  },
+  themeMode: 'light',
+  toggleTheme: () => {},
+});
 
-const THEME_STORAGE_KEY = '@theme_preference';
+/**
+ * Light theme configuration
+ */
+const lightTheme: Theme = {
+  background: '#FFFFFF',
+  surface: '#F5F5F5',
+  primary: '#007AFF',
+  income: '#34C759',
+  expense: '#FF3B30',
+  border: '#E5E5EA',
+  shadow: '#000000',
+  text: {
+    primary: '#000000',
+    secondary: '#666666',
+  },
+};
 
+/**
+ * Dark theme configuration
+ */
+const darkTheme: Theme = {
+  background: '#000000',
+  surface: '#1C1C1E',
+  primary: '#0A84FF',
+  income: '#32D74B',
+  expense: '#FF453A',
+  border: '#38383A',
+  shadow: '#000000',
+  text: {
+    primary: '#FFFFFF',
+    secondary: '#98989F',
+  },
+};
+
+/**
+ * ThemeProvider Component
+ * 
+ * Manages theme state and provides theme context to the application.
+ * Handles theme persistence and system theme detection.
+ */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDarkMode, setIsDark] = useState(false);
+  // Get system color scheme
+  const systemColorScheme = useColorScheme();
+  
+  // State for theme mode and current theme
+  const [themeMode, setThemeMode] = useState<ThemeMode>(
+    (systemColorScheme as ThemeMode) || 'light'
+  );
+  const [theme, setTheme] = useState<Theme>(
+    themeMode === 'light' ? lightTheme : darkTheme
+  );
 
-  // Load saved theme preference on mount
+  /**
+   * Load saved theme preference from AsyncStorage
+   */
   useEffect(() => {
-    loadThemePreference();
-  }, []);
-
-  // Load theme from AsyncStorage
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-      if (savedTheme !== null) {
-        setIsDark(savedTheme === 'dark');
+    const loadTheme = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem('themeMode');
+        if (savedTheme) {
+          setThemeMode(savedTheme as ThemeMode);
+          setTheme(savedTheme === 'light' ? lightTheme : darkTheme);
+        }
+      } catch (error) {
+        console.error('Error loading theme:', error);
       }
-    } catch (error) {
-      console.error('Error loading theme preference:', error);
-    }
-  };
+    };
 
-  // Save theme preference
-  const saveThemePreference = async (isDark: boolean) => {
-    try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
-    } catch (error) {
-      console.error('Error saving theme preference:', error);
-    }
-  };
-
-  // Toggle theme function
-  const toggleTheme = useCallback(() => {
-    setIsDark(prevIsDark => {
-      const newIsDark = !prevIsDark;
-      saveThemePreference(newIsDark);
-      return newIsDark;
-    });
+    loadTheme();
   }, []);
 
-  // Get current theme based on isDark state
-  const theme = isDarkMode ? darkTheme : lightTheme;
-
-  const value = {
-    theme,
-    isDarkMode,
-    toggleTheme,
+  /**
+   * Toggle between light and dark themes
+   * Updates both state and persisted preference
+   */
+  const toggleTheme = async () => {
+    const newThemeMode: ThemeMode = themeMode === 'light' ? 'dark' : 'light';
+    try {
+      await AsyncStorage.setItem('themeMode', newThemeMode);
+      setThemeMode(newThemeMode);
+      setTheme(newThemeMode === 'light' ? lightTheme : darkTheme);
+    } catch (error) {
+      console.error('Error saving theme:', error);
+    }
   };
 
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider value={{ theme, themeMode, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
-// Custom hook to use theme
+/**
+ * Custom hook to access the ThemeContext
+ * @returns The ThemeContext value
+ */
 export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-} 
+  return useContext(ThemeContext);
+}
+
+/**
+ * Export theme colors for direct use in components
+ */
+export const COLORS = {
+  ...lightTheme,
+  ...darkTheme,
+}; 

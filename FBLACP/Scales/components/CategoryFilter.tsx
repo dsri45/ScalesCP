@@ -1,16 +1,29 @@
+/**
+ * CategoryFilter Component
+ * 
+ * A reusable component that displays a list of categories with icons
+ * and allows users to filter transactions by category.
+ */
+
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 type IconNames = keyof typeof Ionicons.glyphMap;
 
+/**
+ * Props for the CategoryFilter component
+ */
 interface CategoryFilterProps {
-  categories: string[];
-  selectedCategory: string | null;
-  onSelectCategory: (category: string | null) => void;
+  categories: string[];        // List of available categories
+  selectedCategory: string | null;  // Currently selected category
+  onSelectCategory: (category: string | null) => void;  // Callback when category is selected
 }
 
-// Update the categoryIcons type
+/**
+ * Mapping of category names to their corresponding Ionicons
+ * Used to display appropriate icons for each category
+ */
 const categoryIcons: { [key: string]: IconNames } = {
   'Food & Drinks': 'restaurant',
   'Shopping': 'cart',
@@ -33,6 +46,12 @@ const categoryIcons: { [key: string]: IconNames } = {
   'Other': 'ellipsis-horizontal',
 };
 
+/**
+ * CategoryFilter Component
+ * 
+ * Renders a scrollable list of categories with icons.
+ * Allows users to select/deselect categories for filtering.
+ */
 export default function CategoryFilter({
   categories,
   selectedCategory,

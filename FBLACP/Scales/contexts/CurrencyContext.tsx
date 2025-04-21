@@ -1,3 +1,13 @@
+/**
+ * CurrencyContext
+ * 
+ * This context manages currency-related functionality in the application, including:
+ * - Currency selection and formatting
+ * - Exchange rate handling
+ * - Currency symbol display
+ * - Currency persistence
+ */
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, TextInput } from 'react-native';
@@ -5,86 +15,117 @@ import CurrencyConversionDialog from '../components/CurrencyConversionDialog';
 import { getDatabase } from '../services/database';
 import { useTransactions } from './TransactionContext';
 
-interface CurrencyContextType {
-  currency: { symbol: string; code: string };
-  setCurrency: (currency: { symbol: string; code: string }) => Promise<void>;
-  conversionRate: number;
+/**
+ * Interface for currency information
+ */
+interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+  rate: number;
 }
 
-const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
+/**
+ * CurrencyContext value interface
+ */
+interface CurrencyContextType {
+  currency: Currency;
+  setCurrency: (code: string) => void;
+  formatAmount: (amount: number) => string;
+  convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => number;
+}
 
-export const currencies = [
-  { symbol: '$', code: 'USD' },   // US Dollar
-  { symbol: '€', code: 'EUR' },   // Euro
-  { symbol: '£', code: 'GBP' },   // British Pound
-  { symbol: '¥', code: 'JPY' },   // Japanese Yen
-  { symbol: '$', code: 'CAD' },   // Canadian Dollar
-  { symbol: '$', code: 'AUD' },   // Australian Dollar
-  { symbol: 'Fr', code: 'CHF' },  // Swiss Franc
-  { symbol: '¥', code: 'CNY' },   // Chinese Yuan
-  { symbol: '₹', code: 'INR' },   // Indian Rupee
-  { symbol: '₩', code: 'KRW' },   // South Korean Won
-  { symbol: '$', code: 'NZD' },   // New Zealand Dollar
-  { symbol: 'kr', code: 'SEK' },  // Swedish Krona
-  { symbol: '$', code: 'SGD' },   // Singapore Dollar
-  { symbol: '฿', code: 'THB' },   // Thai Baht
-  { symbol: '₺', code: 'TRY' },   // Turkish Lira
-  { symbol: 'R', code: 'ZAR' },   // South African Rand
-  { symbol: '₽', code: 'RUB' },   // Russian Ruble
-  { symbol: 'R$', code: 'BRL' },  // Brazilian Real
-  { symbol: '$', code: 'HKD' },   // Hong Kong Dollar
-  { symbol: '$', code: 'MXN' },   // Mexican Peso
-  { symbol: 'kr', code: 'NOK' },  // Norwegian Krone
-  { symbol: 'kr', code: 'DKK' },  // Danish Krone
-  { symbol: 'zł', code: 'PLN' },  // Polish Złoty
-  { symbol: '₱', code: 'PHP' },   // Philippine Peso
-  { symbol: 'Dh', code: 'AED' },  // UAE Dirham
-  { symbol: '₪', code: 'ILS' },   // Israeli Shekel
-  { symbol: 'Kč', code: 'CZK' },  // Czech Koruna
-  { symbol: 'Ft', code: 'HUF' },  // Hungarian Forint
-  { symbol: 'RM', code: 'MYR' },  // Malaysian Ringgit
-  { symbol: '$', code: 'TWD' },   // Taiwan Dollar
-  { symbol: '₡', code: 'CRC' },   // Costa Rican Colón
-  { symbol: 'S/', code: 'PEN' },  // Peruvian Sol
-  { symbol: '$', code: 'CLP' },   // Chilean Peso
-  { symbol: '$', code: 'ARS' },   // Argentine Peso
-  { symbol: '₦', code: 'NGN' },   // Nigerian Naira
-  { symbol: '₸', code: 'KZT' },   // Kazakhstani Tenge
-  { symbol: '₴', code: 'UAH' },   // Ukrainian Hryvnia
-  { symbol: '₫', code: 'VND' },   // Vietnamese Dong
-  { symbol: 'Rp', code: 'IDR' },  // Indonesian Rupiah
-];
+/**
+ * Available currencies with their details
+ */
+const CURRENCIES: Record<string, Currency> = {
+  USD: { code: 'USD', symbol: '$', name: 'US Dollar', rate: 1 },
+  EUR: { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.85 },
+  GBP: { code: 'GBP', symbol: '£', name: 'British Pound', rate: 0.72 },
+  JPY: { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rate: 110.5 },
+  CAD: { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', rate: 1.25 },
+  AUD: { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rate: 1.30 },
+  CNY: { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', rate: 6.45 },
+  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 75.0 },
+};
 
+/**
+ * Create CurrencyContext with default values
+ */
+const CurrencyContext = createContext<CurrencyContextType>({
+  currency: CURRENCIES.USD,
+  setCurrency: () => {},
+  formatAmount: () => '',
+  convertAmount: () => 0,
+});
+
+/**
+ * CurrencyProvider Component
+ * 
+ * Manages currency state and provides currency-related functionality
+ * to the entire application.
+ */
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrencyState] = useState({ symbol: '$', code: 'USD' });
-  const [conversionRate, setConversionRate] = useState(1);
+  // State for current currency
+  const [currency, setCurrencyState] = useState<Currency>(CURRENCIES.USD);
   const [showConversionDialog, setShowConversionDialog] = useState(false);
   const [pendingCurrency, setPendingCurrency] = useState<{ symbol: string; code: string } | null>(null);
-  const { refreshTransactions } = useTransactions();
+  const { transactions } = useTransactions();
 
+  /**
+   * Load saved currency preference from AsyncStorage
+   */
   useEffect(() => {
-    loadSavedCurrency();
+    const loadCurrency = async () => {
+      try {
+        const savedCurrency = await AsyncStorage.getItem('currency');
+        if (savedCurrency && CURRENCIES[savedCurrency]) {
+          setCurrencyState(CURRENCIES[savedCurrency]);
+        }
+      } catch (error) {
+        console.error('Error loading currency:', error);
+      }
+    };
+
+    loadCurrency();
   }, []);
 
-  const loadSavedCurrency = async () => {
-    try {
-      const savedCurrency = await AsyncStorage.getItem('currency');
-      const savedRate = await AsyncStorage.getItem('conversionRate');
-      if (savedCurrency) {
-        setCurrencyState(JSON.parse(savedCurrency));
+  /**
+   * Set new currency and save preference
+   * @param code - The currency code to set
+   */
+  const setCurrency = async (code: string) => {
+    if (CURRENCIES[code]) {
+      try {
+        await AsyncStorage.setItem('currency', code);
+        setCurrencyState(CURRENCIES[code]);
+      } catch (error) {
+        console.error('Error saving currency:', error);
       }
-      if (savedRate) {
-        setConversionRate(parseFloat(savedRate));
-      }
-    } catch (error) {
-      console.error('Error loading currency:', error);
     }
   };
 
-  const setCurrency = async (newCurrency: { symbol: string; code: string }) => {
-    if (currency.code === newCurrency.code) return;
-    setPendingCurrency(newCurrency);
-    setShowConversionDialog(true);
+  /**
+   * Format amount according to current currency
+   * @param amount - The amount to format
+   * @returns Formatted amount string
+   */
+  const formatAmount = (amount: number): string => {
+    return `${currency.symbol}${Math.abs(amount).toFixed(2)}`;
+  };
+
+  /**
+   * Convert amount between currencies
+   * @param amount - The amount to convert
+   * @param fromCurrency - Source currency code
+   * @param toCurrency - Target currency code
+   * @returns Converted amount
+   */
+  const convertAmount = (amount: number, fromCurrency: string, toCurrency: string): number => {
+    if (!CURRENCIES[fromCurrency] || !CURRENCIES[toCurrency]) {
+      return amount;
+    }
+    return (amount * CURRENCIES[toCurrency].rate) / CURRENCIES[fromCurrency].rate;
   };
 
   const handleConversionConfirm = async (rate: number) => {
@@ -92,13 +133,14 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     
     try {
       await AsyncStorage.setItem('currency', JSON.stringify(pendingCurrency));
-      await AsyncStorage.setItem('conversionRate', rate.toString());
       
-      await convertExistingTransactions(rate, conversionRate);
+      // Update transactions with new currency rate
+      const updatedTransactions = transactions.map(transaction => ({
+        ...transaction,
+        amount: transaction.amount * rate
+      }));
       
-      setCurrencyState(pendingCurrency);
-      setConversionRate(rate);
-      await refreshTransactions();
+      setCurrencyState(CURRENCIES[pendingCurrency.code]);
     } catch (error) {
       console.error('Error saving currency:', error);
       Alert.alert('Error', 'Failed to save currency settings');
@@ -109,7 +151,14 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, conversionRate }}>
+    <CurrencyContext.Provider
+      value={{
+        currency,
+        setCurrency,
+        formatAmount,
+        convertAmount,
+      }}
+    >
       {children}
       <CurrencyConversionDialog
         visible={showConversionDialog}
@@ -125,13 +174,13 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useCurrency = () => {
-  const context = useContext(CurrencyContext);
-  if (context === undefined) {
-    throw new Error('useCurrency must be used within a CurrencyProvider');
-  }
-  return context;
-};
+/**
+ * Custom hook to access the CurrencyContext
+ * @returns The CurrencyContext value
+ */
+export function useCurrency() {
+  return useContext(CurrencyContext);
+}
 
 interface Transaction {
   id: number;

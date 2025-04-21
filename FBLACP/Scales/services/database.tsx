@@ -1,9 +1,22 @@
+/**
+ * Database Service
+ * 
+ * This service handles all database operations for the application, including:
+ * - SQLite database initialization and management
+ * - Transaction CRUD operations
+ * - User authentication and management
+ * - Data persistence and retrieval
+ */
+
 import * as SQLite from 'expo-sqlite';
 
 // Open/create the database
 const db = SQLite.openDatabaseSync('Scales.db');
 
-// Types
+/**
+ * Transaction Interface
+ * Defines the structure of a transaction record in the database
+ */
 export interface Transaction {
   id: string;
   title: string;
@@ -18,13 +31,20 @@ export interface Transaction {
   userId: string;
 }
 
+/**
+ * User Interface
+ * Defines the structure of a user record in the database
+ */
 export interface User {
   id: string;
   email: string; // Use email instead of username
   password: string; // In a real-world app, store hashed passwords
 }
 
-// Initialize database
+/**
+ * Initialize Database
+ * Creates necessary tables and sets up the database schema
+ */
 export const initDatabase = async () => {
   try {
     // Create transactions table if it doesn't exist
@@ -40,7 +60,7 @@ export const initDatabase = async () => {
         recurringEndDate TEXT,
         receiptImage TEXT,
         comment TEXT,
-        userId TEXT NOT NULL DEFAULT 'unknown', -- Add a default value for userId
+        userId TEXT NOT NULL DEFAULT 'unknown',
         FOREIGN KEY (userId) REFERENCES users (id)
       );
     `);
@@ -49,7 +69,7 @@ export const initDatabase = async () => {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY NOT NULL,
-        email TEXT UNIQUE NOT NULL, -- Use email instead of username
+        email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL
       );
     `);
@@ -71,7 +91,10 @@ export const initDatabase = async () => {
   }
 };
 
-// CRUD Operations
+/**
+ * Get All Transactions
+ * Retrieves all transactions from the database, ordered by date
+ */
 export const getTransactions = async (): Promise<Transaction[]> => {
   try {
     const result = await db.getAllAsync<any>('SELECT * FROM transactions ORDER BY date DESC;');
@@ -98,7 +121,10 @@ export const getTransactions = async (): Promise<Transaction[]> => {
   }
 };
 
-// Add a transaction with userId
+/**
+ * Add Transaction
+ * Creates a new transaction record in the database
+ */
 export const addTransaction = async (transaction: Omit<Transaction, 'id'> & { userId: string }): Promise<string> => {
   try {
     const id = Math.random().toString(36).substr(2, 9);
@@ -126,6 +152,10 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'> & { us
   }
 };
 
+/**
+ * Update Transaction
+ * Modifies an existing transaction record in the database
+ */
 export const updateTransaction = async (transaction: Transaction): Promise<void> => {
   try {
     await db.runAsync(
@@ -161,6 +191,10 @@ export const updateTransaction = async (transaction: Transaction): Promise<void>
   }
 };
 
+/**
+ * Delete Transaction
+ * Removes a transaction record from the database
+ */
 export const deleteTransaction = async (id: string): Promise<void> => {
   try {
     await db.runAsync('DELETE FROM transactions WHERE id = ?;', [id]);
@@ -170,12 +204,22 @@ export const deleteTransaction = async (id: string): Promise<void> => {
   }
 };
 
+/**
+ * Get Database Instance
+ * Returns the SQLite database instance
+ */
 export const getDatabase = () => db;
 
-// User Operations
+/**
+ * User Operations
+ */
+
+/**
+ * Sign Up User
+ * Creates a new user account in the database
+ */
 export const signupUser = async (email: string, password: string): Promise<string> => {
   try {
-    // Use getAllAsync instead of getAllSync
     const existingUser = await db.getAllAsync<User>(
       `SELECT * FROM users WHERE email = ?;`, [email]
     );
@@ -197,6 +241,10 @@ export const signupUser = async (email: string, password: string): Promise<strin
   }
 };
 
+/**
+ * Login User
+ * Authenticates a user and returns their information
+ */
 export const loginUser = async (email: string, password: string): Promise<User | null> => {
   try {
     const result = db.getAllSync<User>(
@@ -210,7 +258,10 @@ export const loginUser = async (email: string, password: string): Promise<User |
   }
 };
 
-// Fetch user-specific transactions
+/**
+ * Get User Transactions
+ * Retrieves all transactions for a specific user
+ */
 export const getUserTransactions = async (userId: string): Promise<Transaction[]> => {
   try {
     const result = await db.getAllAsync<any>(
@@ -237,6 +288,10 @@ export const getUserTransactions = async (userId: string): Promise<Transaction[]
   }
 };
 
+/**
+ * Get User By ID
+ * Retrieves a user's information by their ID
+ */
 export const getUserById = async (id: string): Promise<User | null> => {
   try {
     const result = await db.getAllAsync<User>(

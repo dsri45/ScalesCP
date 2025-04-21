@@ -1,3 +1,13 @@
+/**
+ * ScanReceipt Component
+ * 
+ * This component handles the receipt scanning functionality, including:
+ * - Camera access and image capture
+ * - Text extraction using Google Vision API
+ * - Data parsing (amount, date, category)
+ * - Transaction creation
+ */
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking, Image, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,9 +22,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { classifyReceipt, classifyReceiptSimple } from '../services/mlClassification';
 
 export default function ScanReceipt() {
+  // Navigation and Context
   const router = useRouter();
   const { theme } = useTheme();
   const { addTransaction } = useTransactions();
+
+  // State Management
   const [isLoading, setIsLoading] = useState(false);
   const [scannedText, setScannedText] = useState('');
   const [extractedAmount, setExtractedAmount] = useState<number | null>(null);
@@ -29,6 +42,11 @@ export default function ScanReceipt() {
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [isClassifying, setIsClassifying] = useState(false);
 
+  /**
+   * Initial Setup Effect
+   * - Checks for Google Vision API key
+   * - Requests camera permissions
+   */
   useEffect(() => {
     // Check if API key is set
     if (!GOOGLE_VISION_API_KEY || GOOGLE_VISION_API_KEY.trim() === '') {
@@ -46,6 +64,7 @@ export default function ScanReceipt() {
       return;
     }
 
+    // Request camera permissions
     (async () => {
       try {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -82,6 +101,11 @@ export default function ScanReceipt() {
     })();
   }, []);
 
+  /**
+   * Extracts monetary amount from text using regex
+   * @param text - The text to search for amounts
+   * @returns The extracted amount or null if not found
+   */
   const extractAmount = (text: string): number | null => {
     try {
       const amountRegex = /\$?\d+\.\d{2}/g;
@@ -98,6 +122,11 @@ export default function ScanReceipt() {
     }
   };
 
+  /**
+   * Extracts date from text using multiple date formats
+   * @param text - The text to search for dates
+   * @returns The extracted date or null if not found
+   */
   const extractDate = (text: string): Date | null => {
     try {
       // Try multiple date formats
@@ -129,6 +158,11 @@ export default function ScanReceipt() {
     }
   };
 
+  /**
+   * Uses Google Vision API to extract text from an image
+   * @param imageUri - URI of the image to process
+   * @returns The extracted text
+   */
   const recognizeTextWithGoogleVision = async (imageUri: string): Promise<string> => {
     try {
       // Convert image to base64
@@ -198,6 +232,12 @@ export default function ScanReceipt() {
     }
   };
 
+  /**
+   * Handles the receipt scanning process
+   * - Launches camera
+   * - Processes image
+   * - Extracts and validates data
+   */
   const handleScanReceipt = async () => {
     if (apiKeyError) {
       Alert.alert(
@@ -285,6 +325,9 @@ export default function ScanReceipt() {
     }
   };
 
+  /**
+   * Creates a new transaction from the scanned receipt data
+   */
   const handleAddTransaction = async () => {
     try {
       // Validate amount
@@ -300,8 +343,9 @@ export default function ScanReceipt() {
         amount: -amount, // Negative for expense
         date: manualDate.toISOString(),
         category: selectedCategory,
-        receiptImage: receiptImageUri,
-        comment: comment.trim() || undefined, // Only include if not empty
+        receiptImage: receiptImageUri || undefined,
+        comment: comment.trim() || undefined,
+        userId: 'default-user'
       });
       
       router.back();
@@ -311,6 +355,9 @@ export default function ScanReceipt() {
     }
   };
 
+  /**
+   * Handles date picker changes
+   */
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -320,6 +367,7 @@ export default function ScanReceipt() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* API Key Error Display */}
       {apiKeyError ? (
         <View style={[styles.errorContainer, { backgroundColor: theme.surface }]}>
           <Ionicons name="alert-circle" size={48} color="#FF3B30" />
@@ -332,6 +380,7 @@ export default function ScanReceipt() {
         </View>
       ) : (
         <>
+          {/* Scan Button */}
           <TouchableOpacity
             style={[styles.scanButton, { backgroundColor: theme.primary }]}
             onPress={handleScanReceipt}
@@ -347,6 +396,7 @@ export default function ScanReceipt() {
             )}
           </TouchableOpacity>
 
+          {/* Receipt Image Preview */}
           {receiptImageUri && (
             <View style={[styles.imagePreviewContainer, { backgroundColor: theme.surface }]}>
               <Text style={[styles.previewTitle, { color: theme.text.primary }]}>Receipt Image:</Text>
@@ -358,10 +408,12 @@ export default function ScanReceipt() {
             </View>
           )}
 
+          {/* Transaction Form */}
           {showTransactionForm && (
             <View style={[styles.formContainer, { backgroundColor: theme.surface }]}>
               <Text style={[styles.formTitle, { color: theme.text.primary }]}>Transaction Details</Text>
               
+              {/* Amount Input */}
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Amount:</Text>
                 <TextInput
@@ -378,6 +430,7 @@ export default function ScanReceipt() {
                 />
               </View>
               
+              {/* Date Selection */}
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>
                   Date: {extractedDate && extractedDate !== manualDate ? '(Defaulted to current date)' : ''}
@@ -403,6 +456,7 @@ export default function ScanReceipt() {
                 )}
               </View>
               
+              {/* Category Selection */}
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>
                   Category: {isClassifying ? '(Classifying...)' : ''}
@@ -430,6 +484,7 @@ export default function ScanReceipt() {
                 </View>
               </View>
               
+              {/* Comment Input */}
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Comment (Optional):</Text>
                 <TextInput
@@ -447,6 +502,7 @@ export default function ScanReceipt() {
                 />
               </View>
               
+              {/* Add Transaction Button */}
               <TouchableOpacity
                 style={[styles.addButton, { backgroundColor: theme.primary }]}
                 onPress={handleAddTransaction}
@@ -456,6 +512,7 @@ export default function ScanReceipt() {
             </View>
           )}
 
+          {/* Scanned Text Preview */}
           {scannedText && !showTransactionForm && (
             <View style={[styles.previewContainer, { backgroundColor: theme.surface }]}>
               <Text style={[styles.previewTitle, { color: theme.text.primary }]}>Scanned Text:</Text>
@@ -463,6 +520,7 @@ export default function ScanReceipt() {
             </View>
           )}
 
+          {/* Instructions */}
           {!scannedText && !showTransactionForm && (
             <View style={[styles.instructionsContainer, { backgroundColor: theme.surface }]}>
               <Text style={[styles.instructionsText, { color: theme.text.secondary }]}>
@@ -476,6 +534,9 @@ export default function ScanReceipt() {
   );
 }
 
+/**
+ * Styles for the ScanReceipt component
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,

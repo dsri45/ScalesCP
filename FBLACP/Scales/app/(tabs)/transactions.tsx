@@ -1,4 +1,15 @@
-import { useState } from 'react';
+/**
+ * Transactions Component
+ * 
+ * This component provides a comprehensive view of all transactions with:
+ * - Search functionality
+ * - Filtering by type (income/expense)
+ * - Category filtering
+ * - Transaction list display
+ * - Transaction details view
+ */
+
+import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Pressable, Dimensions, Animated, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -36,43 +47,60 @@ const typeIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function Transactions() {
+  /**
+   * Context hooks for theme, transactions, and currency
+   */
   const { theme } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all');
   const { transactions, deleteTransaction } = useTransactions();
   const { currency } = useCurrency();
 
-  const filters = [
-    { id: 'all', label: 'All' },
-    { id: 'income', label: 'Income' },
-    { id: 'expenses', label: 'Expenses' },
-  ];
-
+  /**
+   * State management for search and filters
+   */
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const filteredTransactions = transactions.filter(transaction => {
-    // First check if the transaction matches the search query
-    const matchesSearch = searchQuery
-      ? transaction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transaction.category.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
+  /**
+   * Filter transactions based on search query, type, and category
+   * Uses useMemo for performance optimization
+   */
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      // Search query filter
+      const matchesSearch = transaction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Transaction type filter
+      const matchesType = selectedType === 'all' || 
+                         (selectedType === 'income' && transaction.amount > 0) ||
+                         (selectedType === 'expense' && transaction.amount < 0);
+      
+      // Category filter
+      const matchesCategory = !selectedCategory || transaction.category === selectedCategory;
+      
+      return matchesSearch && matchesType && matchesCategory;
+    });
+  }, [transactions, searchQuery, selectedType, selectedCategory]);
 
-    // Then check if it matches the selected type filter
-    const matchesType = selectedType === 'all' ? true :
-      selectedType === 'income' ? transaction.amount > 0 :
-      transaction.amount < 0;
-
-    // Finally check if it matches the selected category
-    const matchesCategory = selectedCategory ? transaction.category === selectedCategory : true;
-
-    // Return true only if all conditions are met
-    return matchesSearch && matchesType && matchesCategory;
-  });
-
-  const currentCategories = selectedType === 'income' ? incomeCategories : 
-                          selectedType === 'expense' ? expenseCategories :
-                          [...new Set([...incomeCategories, ...expenseCategories])];
+  /**
+   * Calculate totals for filtered transactions
+   */
+  const totals = useMemo(() => {
+    return filteredTransactions.reduce(
+      (acc, transaction) => {
+        if (transaction.amount > 0) {
+          acc.income += transaction.amount;
+        } else {
+          acc.expenses += Math.abs(transaction.amount);
+        }
+        acc.balance = acc.income - acc.expenses;
+        return acc;
+      },
+      { balance: 0, income: 0, expenses: 0 }
+    );
+  }, [filteredTransactions]);
 
   const handleDelete = (id: string) => {
     Alert.alert(
@@ -135,17 +163,9 @@ export default function Transactions() {
   // Add this state to track if a swipe is in progress
   const [isSwipeActive, setIsSwipeActive] = useState(false);
 
-  // Add this before the return statement
-  const totals = transactions.reduce((acc, t) => {
-    if (t.amount > 0) {
-      acc.income += t.amount;
-    } else {
-      acc.expenses += Math.abs(t.amount);
-    }
-    // Calculate the actual balance (can be negative)
-    acc.balance = acc.income - acc.expenses;
-    return acc;
-  }, { income: 0, expenses: 0, balance: 0 });
+  const currentCategories = selectedType === 'income' ? incomeCategories : 
+                          selectedType === 'expense' ? expenseCategories :
+                          [...new Set([...incomeCategories, ...expenseCategories])];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -227,7 +247,7 @@ export default function Transactions() {
                   { 
                     backgroundColor: selectedType === type ? theme.primary : theme.surface,
                     borderColor: theme.border,
-                    shadowColor: theme.shadowColor,
+                    shadowColor: theme.shadow,
                   }
                 ]}
                 onPress={() => {

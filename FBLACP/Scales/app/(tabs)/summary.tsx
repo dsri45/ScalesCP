@@ -1,4 +1,14 @@
-import React, { useState, useCallback, useEffect } from 'react';
+/**
+ * Summary Component
+ * 
+ * This component provides a financial summary view with:
+ * - Date range selection
+ * - Income/Expense/Balance totals
+ * - Transaction list for selected period
+ * - PDF export functionality
+ */
+
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, TouchableOpacity, Text, Alert, StyleSheet, ScrollView, Platform, Image, Modal } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Print from 'expo-print';
@@ -8,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useTransactions } from '../../contexts/TransactionContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { Transaction } from '../../services/database'; 
+import TransactionItem from '../../components/TransactionItem';
 
 interface GeneratePDFProps {
   transactions: Transaction[];
@@ -635,27 +646,11 @@ export default function Summary() {
               </Text>
             ) : (
               filteredTransactions.map((t, index) => (
-                <View key={`${t.id}-${index}`} style={styles.transactionItem}>
-                  <View style={styles.transactionLeft}>
-                    <Text style={[styles.transactionTitle, { color: theme.text.primary }]}>
-                      {t.title}
-                    </Text>
-                    <Text style={[styles.transactionCategory, { color: theme.text.secondary }]}>
-                      {t.category}
-                    </Text>
-                  </View>
-                  <View style={styles.transactionRight}>
-                    <Text style={[styles.transactionAmount, { 
-                      color: t.amount >= 0 ? '#4CAF50' : '#F44336' 
-                    }]}>
-                      {t.amount >= 0 ? '' : '-'}
-                      {formatAmount(Math.abs(t.amount))}
-                    </Text>
-                    <Text style={[styles.transactionDate, { color: theme.text.secondary }]}>
-                      {new Date(t.date).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
+                <TransactionItem
+                  key={`${t.id}-${index}`}
+                  {...t}
+                  receiptImage={t.receiptImage ?? undefined}
+                />
               ))
             )}
           </View>

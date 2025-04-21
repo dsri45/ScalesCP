@@ -1,12 +1,26 @@
+/**
+ * TransactionForm Component
+ * 
+ * This component provides a form for adding new transactions with:
+ * - Title input
+ * - Amount input
+ * - Date selection
+ * - Category selection
+ * - Optional comment
+ * - Receipt image attachment
+ */
+
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, TouchableOpacity, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTransactions } from '../contexts/TransactionContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import RecurringTransactionSettings from '../components/RecurringTransactionSettings';
+import * as ImagePicker from 'expo-image-picker';
 
 const expenseCategories = [
   'Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Other'
@@ -39,8 +53,9 @@ const TRANSACTION_COLORS = {
 
 export default function TransactionForm() {
   const router = useRouter();
-  const { theme, isDarkMode } = useTheme();
+  const { theme } = useTheme();
   const { addTransaction, updateTransaction, deleteTransaction, transactions } = useTransactions();
+  const { currency } = useCurrency();
   const params = useLocalSearchParams<{ transactionId?: string }>();
 
   const existingTransaction = params.transactionId 
@@ -66,6 +81,7 @@ export default function TransactionForm() {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [receiptImage, setReceiptImage] = useState<string | null>(existingTransaction?.receiptImage || null);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -121,13 +137,14 @@ export default function TransactionForm() {
         isRecurring,
         recurringType: isRecurring ? recurringType : undefined,
         recurringEndDate: isRecurring ? recurringEndDate : null,
-        userId: 'default-user' // Add default userId since we're not using authentication yet
+        userId: 'default-user', // Add default userId since we're not using authentication yet
+        comment: '', // Assuming comment is not provided in the form
+        receiptImage: receiptImage || undefined
       };
 
       if (isEditMode && params.transactionId) {
-        await updateTransaction({
+        await updateTransaction(params.transactionId, {
           ...transactionData,
-          id: params.transactionId,
           userId: existingTransaction?.userId || 'default-user',
           recurringType: transactionData.recurringType || undefined,
         });
@@ -160,8 +177,21 @@ export default function TransactionForm() {
     router.push('/transactionForm');
   };
 
-  const handleScanReceipt = () => {
-    router.push('/scanReceipt');
+  const handleScanReceipt = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setReceiptImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+    }
   };
 
   return (
@@ -266,7 +296,7 @@ export default function TransactionForm() {
         ]}>
           <TextInput
             style={[styles.amountInput, { color: theme.text.primary }]}
-            placeholder="0.00"
+            placeholder={`Enter amount (${currency.symbol})`}
             placeholderTextColor={theme.text.secondary}
             keyboardType="decimal-pad"
             value={amount}
@@ -384,19 +414,59 @@ export default function TransactionForm() {
           ))}
         </ScrollView>
 
-<View style={styles.sectionContainer}>
-  <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
-    Recurring Settings
-  </Text>
-  <RecurringTransactionSettings
-    isRecurring={isRecurring}
-    recurringType={recurringType}
-    recurringEndDate={recurringEndDate}
-    onRecurringChange={setIsRecurring}
-    onRecurringTypeChange={setRecurringType}
-    onEndDateChange={setRecurringEndDate}
-  />
-</View>
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
+            Recurring Settings
+          </Text>
+          <RecurringTransactionSettings
+            isRecurring={isRecurring}
+            recurringType={recurringType}
+            recurringEndDate={recurringEndDate}
+            onRecurringChange={setIsRecurring}
+            onRecurringTypeChange={setRecurringType}
+            onEndDateChange={setRecurringEndDate}
+          />
+        </View>
+
+        <View style={[styles.inputContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Comment (Optional)</Text>
+          <TextInput
+            style={[styles.commentInput, { 
+              backgroundColor: theme.background,
+              color: theme.text.primary,
+              borderColor: theme.border
+            }]}
+            value={''}
+            onChangeText={(text) => {}}
+            placeholder="Add a comment"
+            placeholderTextColor={theme.text.secondary}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+
+        <View style={[styles.inputContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Receipt (Optional)</Text>
+          <TouchableOpacity
+            style={[styles.imageButton, { 
+              backgroundColor: theme.background,
+              borderColor: theme.border
+            }]}
+            onPress={handleScanReceipt}
+          >
+            <Ionicons name="image" size={24} color={theme.text.secondary} />
+            <Text style={{ color: theme.text.secondary, marginLeft: 8 }}>
+              {receiptImage ? 'Change Image' : 'Add Image'}
+            </Text>
+          </TouchableOpacity>
+          {receiptImage && (
+            <Image
+              source={{ uri: receiptImage }}
+              style={styles.receiptImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
 
         <Pressable 
           style={[styles.button, { backgroundColor: theme.primary }]}
@@ -522,11 +592,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-
   sectionContainer: {
-  marginTop: 24,
-  marginBottom: 16,
-},
+    marginTop: 24,
+    marginBottom: 16,
+  },
   scanButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -556,5 +625,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  commentInput: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  imageButton: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  receiptImage: {
+    width: '100%',
+    height: 200,
+    marginTop: 8,
+    borderRadius: 8,
   },
 });
