@@ -171,12 +171,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>
         <TransactionProvider>
-          <CurrencyProvider>
-            <GoalProvider>
+          <GoalProvider>
+            <CurrencyProvider>
               <StackNavigator />
               <GoalModal />
-            </GoalProvider>
-          </CurrencyProvider>
+            </CurrencyProvider>
+          </GoalProvider>
         </TransactionProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

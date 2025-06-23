@@ -4,11 +4,15 @@ import { Alert, TextInput } from 'react-native';
 import CurrencyConversionDialog from '../components/CurrencyConversionDialog';
 import { getDatabase } from '../services/database';
 import { useTransactions } from './TransactionContext';
+import { useGoal } from './GoalContext';
+import { currencyService } from '../services/currencyService';
 
 interface CurrencyContextType {
   currency: { symbol: string; code: string };
   setCurrency: (currency: { symbol: string; code: string }) => Promise<void>;
   conversionRate: number;
+  isLoadingRate: boolean;
+  isApiAvailable: boolean;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -60,10 +64,15 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [conversionRate, setConversionRate] = useState(1);
   const [showConversionDialog, setShowConversionDialog] = useState(false);
   const [pendingCurrency, setPendingCurrency] = useState<{ symbol: string; code: string } | null>(null);
+  const [isFallbackConversion, setIsFallbackConversion] = useState(false);
   const { refreshTransactions } = useTransactions();
+  const { goalAmount, saveGoal } = useGoal();
+  const [isLoadingRate, setIsLoadingRate] = useState(false);
+  const [isApiAvailable, setIsApiAvailable] = useState(false);
 
   useEffect(() => {
     loadSavedCurrency();
+    checkApiAvailability();
   }, []);
 
   const loadSavedCurrency = async () => {
@@ -81,10 +90,95 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const checkApiAvailability = async () => {
+    try {
+      const apiAvailable = await currencyService.testApiConnection();
+      setIsApiAvailable(apiAvailable);
+    } catch (error) {
+      console.error('Error checking API availability:', error);
+      setIsApiAvailable(false);
+    }
+  };
+
+  const convertSavingsGoal = async (newRate: number) => {
+    try {
+      if (goalAmount && parseFloat(goalAmount) > 0) {
+        const currentGoalAmount = parseFloat(goalAmount);
+        const newGoalAmount = currentGoalAmount * newRate;
+        console.log(`Converting savings goal: ${currentGoalAmount} × ${newRate} = ${newGoalAmount.toFixed(2)}`);
+        await saveGoal(newGoalAmount.toFixed(2));
+        console.log(`Successfully converted savings goal from ${currentGoalAmount} to ${newGoalAmount.toFixed(2)}`);
+      } else {
+        console.log('No savings goal to convert or goal amount is 0');
+      }
+    } catch (error) {
+      console.error('Error converting savings goal:', error);
+    }
+  };
+
   const setCurrency = async (newCurrency: { symbol: string; code: string }) => {
     if (currency.code === newCurrency.code) return;
-    setPendingCurrency(newCurrency);
-    setShowConversionDialog(true);
+    
+    setIsLoadingRate(true);
+    
+    try {
+      // Check if API is available
+      const apiAvailable = await currencyService.testApiConnection();
+      setIsApiAvailable(apiAvailable);
+      
+      if (!apiAvailable) {
+        // If API is not available, show manual input dialog
+        setPendingCurrency(newCurrency);
+        setIsFallbackConversion(true);
+        setShowConversionDialog(true);
+        return;
+      }
+      
+      // Try to get cached rate first
+      let rate = await currencyService.getCachedRate(currency.code, newCurrency.code);
+      
+      if (!rate) {
+        // Fetch real-time rate from API
+        rate = await currencyService.getExchangeRate(currency.code, newCurrency.code);
+        
+        // Cache the rate for future use
+        await currencyService.cacheRate(currency.code, newCurrency.code, rate);
+      }
+      
+      // Convert existing transactions
+      await convertExistingTransactions(rate, conversionRate);
+      
+      // Convert savings goal
+      await convertSavingsGoal(rate);
+      
+      // Save new currency and rate
+      await AsyncStorage.setItem('currency', JSON.stringify(newCurrency));
+      await AsyncStorage.setItem('conversionRate', rate.toString());
+      
+      setCurrencyState(newCurrency);
+      setConversionRate(rate);
+      await refreshTransactions();
+      
+      Alert.alert(
+        'Currency Updated', 
+        `Successfully converted to ${newCurrency.code} using real-time exchange rate: 1 ${currency.code} = ${rate.toFixed(4)} ${newCurrency.code}`
+      );
+      
+    } catch (error) {
+      console.error('Error setting currency:', error);
+      
+      // Fallback to manual input if automatic conversion fails
+      setPendingCurrency(newCurrency);
+      setIsFallbackConversion(true);
+      setShowConversionDialog(true);
+      
+      Alert.alert(
+        'Conversion Failed', 
+        'Unable to fetch real-time exchange rate. Please enter the conversion rate manually.'
+      );
+    } finally {
+      setIsLoadingRate(false);
+    }
   };
 
   const handleConversionConfirm = async (rate: number) => {
@@ -95,6 +189,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.setItem('conversionRate', rate.toString());
       
       await convertExistingTransactions(rate, conversionRate);
+      
+      // Convert savings goal
+      await convertSavingsGoal(rate);
       
       setCurrencyState(pendingCurrency);
       setConversionRate(rate);
@@ -109,17 +206,19 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, conversionRate }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, conversionRate, isLoadingRate, isApiAvailable }}>
       {children}
       <CurrencyConversionDialog
         visible={showConversionDialog}
         onClose={() => {
           setShowConversionDialog(false);
           setPendingCurrency(null);
+          setIsFallbackConversion(false);
         }}
         onConfirm={handleConversionConfirm}
         fromCurrency={currency.code}
         toCurrency={pendingCurrency?.code || ''}
+        isFallback={isFallbackConversion}
       />
     </CurrencyContext.Provider>
   );

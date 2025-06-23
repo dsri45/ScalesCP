@@ -17,8 +17,10 @@ export function GoalProvider({ children }: { children: React.ReactNode }) {
 
   const saveGoal = async (amount: string) => {
     try {
+      console.log(`Saving goal amount: ${amount}`);
       await AsyncStorage.setItem('savings_goal', amount);
       setGoalAmount(amount);
+      console.log(`Goal amount updated in context: ${amount}`);
     } catch (error) {
       console.error('Error saving goal:', error);
     }

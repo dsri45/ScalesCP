@@ -11,6 +11,7 @@ import TransactionItem from '../../components/TransactionItem';
 import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import { getUserById } from '../../services/database'; // Import the function to fetch user by ID
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Fish animation states
 enum FishState {
@@ -36,7 +37,7 @@ export default function Home() {
   const { theme } = useTheme();
   const { setUserId, transactions } = useTransactions();
   const { currency } = useCurrency();
-  const { goalAmount: savedGoalAmount } = useGoal(); // Get goal from context with a different name
+  const { goalAmount: savedGoalAmount, setGoalAmount } = useGoal(); // Get goal from context with a different name
   const router = useRouter();
   const { userId } = useLocalSearchParams(); // Retrieve the userId from the query parameters
 
@@ -99,6 +100,25 @@ export default function Home() {
   const actualProgress = goalAmount > 0 ? (totals.balance / goalAmount) * 100 : 0;
   const savingsProgress = Math.max(0, actualProgress);
   const displayProgress = Math.min(100, savingsProgress); // For progress bar
+
+  // Debug logging
+  console.log(`Home screen - Goal amount: ${goalAmount}, Currency: ${currency.symbol}${currency.code}, Saved goal: ${savedGoalAmount}`);
+
+  // Refresh goal amount when currency changes
+  useEffect(() => {
+    const refreshGoal = async () => {
+      try {
+        const savedGoal = await AsyncStorage.getItem('savings_goal');
+        if (savedGoal) {
+          setGoalAmount(savedGoal);
+          console.log(`Refreshed goal amount: ${savedGoal}`);
+        }
+      } catch (error) {
+        console.error('Error refreshing goal:', error);
+      }
+    };
+    refreshGoal();
+  }, [currency.code]); // Refresh when currency changes
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -397,7 +417,7 @@ export default function Home() {
           <Ionicons name="arrow-down-circle" size={28} color={theme.expense} />
           <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Expenses</Text>
           <Text style={[styles.statAmount, { color: theme.text.primary }]}>
-            {currency.symbol}{totals.expenses.toFixed(2)}
+            -{currency.symbol}{totals.expenses.toFixed(2)}
           </Text>
         </View>
       </View>

@@ -188,7 +188,7 @@ export default function Transactions() {
                 <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Expenses</Text>
               </View>
               <Text style={[styles.statAmount, { color: '#F44336' }]}>
-                {formatAmount(
+                -{formatAmount(
                   Math.abs(transactions.reduce((sum, t) => sum + (t.amount < 0 ? t.amount : 0), 0)),
                   currency
                 )}

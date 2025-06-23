@@ -9,6 +9,7 @@ interface CurrencyConversionDialogProps {
   onConfirm: (rate: number) => void;
   fromCurrency: string;
   toCurrency: string;
+  isFallback?: boolean;
 }
 
 export default function CurrencyConversionDialog({
@@ -17,6 +18,7 @@ export default function CurrencyConversionDialog({
   onConfirm,
   fromCurrency,
   toCurrency,
+  isFallback,
 }: CurrencyConversionDialogProps) {
   const { theme } = useTheme();
   const [rate, setRate] = useState('1');
@@ -54,7 +56,10 @@ export default function CurrencyConversionDialog({
           </View>
 
           <Text style={[styles.description, { color: theme.text.secondary }]}>
-            Please enter the conversion rate:
+            {isFallback 
+              ? 'Automatic conversion failed. Please enter the conversion rate manually:'
+              : 'Please enter the conversion rate:'
+            }
           </Text>
 
           <View style={styles.conversionContainer}>

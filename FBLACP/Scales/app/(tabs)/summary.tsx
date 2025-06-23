@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Text, Alert, StyleSheet, ScrollView, Platform, 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTransactions } from '../../contexts/TransactionContext';
@@ -60,7 +61,7 @@ export const generateTransactionsPDF = async ({
           
           <div class="summary">
             <div class="total">Total Income: <span class="positive">${formatAmount(totals.income)}</span></div>
-            <div class="total">Total Expenses: <span class="negative">${formatAmount(totals.expenses)}</span></div>
+            <div class="total">Total Expenses: <span class="negative">-${formatAmount(totals.expenses)}</span></div>
             <div class="total">Balance: <span class="${totals.balance >= 0 ? 'positive' : 'negative'}">
               ${totals.balance >= 0 ? '' : '-'}${formatAmount(Math.abs(totals.balance))}
             </span></div>
@@ -110,6 +111,81 @@ export const generateTransactionsPDF = async ({
   } catch (error) {
     console.error('Error generating PDF:', error);
     Alert.alert('Error', 'Failed to generate PDF');
+    throw error;
+  }
+};
+
+export const generateTransactionsCSV = async ({
+  transactions,
+  period,
+  totals,
+  currency
+}: GeneratePDFProps) => {
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+      currencyDisplay: 'symbol',
+    }).format(Math.abs(amount));
+  };
+
+  const formatAmountForCSV = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Math.abs(amount));
+  };
+
+  const formatDateForCSV = (date: Date | string) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  try {
+    // Create CSV content
+    const csvContent = [
+      // Header
+      ['Financial Summary - ' + period],
+      [''],
+      // Summary section
+      ['Total Income', formatAmountForCSV(totals.income)],
+      ['Total Expenses', '-' + formatAmountForCSV(totals.expenses)],
+      ['Balance', (totals.balance >= 0 ? '' : '-') + formatAmountForCSV(Math.abs(totals.balance))],
+      [''],
+      // Transaction details header
+      ['Date', 'Title', 'Category', 'Amount'],
+      // Transaction rows
+      ...transactions.map(t => [
+        formatDateForCSV(t.date),
+        `"${t.title}"`, // Wrap in quotes to handle commas in titles
+        t.category,
+        (t.amount >= 0 ? '' : '-') + formatAmountForCSV(Math.abs(t.amount))
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    // Create a temporary file with CSV content
+    const fileName = `financial_summary_${period.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+    const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+    
+    // Write CSV content to file
+    await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+      encoding: FileSystem.EncodingType.UTF8
+    });
+
+    // Share the CSV file
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Export Financial Summary as CSV',
+        UTI: 'public.comma-separated-values-text' // iOS only
+      });
+    }
+  } catch (error) {
+    console.error('Error generating CSV:', error);
+    Alert.alert('Error', 'Failed to generate CSV');
     throw error;
   }
 };
@@ -548,6 +624,43 @@ export default function Summary() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      // Use the normalized date function for consistency
+      const normStartDate = normalizeDate(startDate);
+      const normEndDate = normalizeDate(endDate);
+      
+      const dateRange = `${normStartDate.toLocaleDateString()} - ${normEndDate.toLocaleDateString()}`;
+      
+      // Filter with the same logic as the report generation
+      const exportTransactions = transactions.filter(t => {
+        const transactionDate = normalizeDate(t.date);
+        return transactionDate >= normStartDate && transactionDate <= normEndDate;
+      });
+      
+      // Use the same total calculation logic
+      const totals = exportTransactions.reduce((acc, t) => {
+        if (t.amount > 0) {
+          acc.income += t.amount;
+        } else {
+          acc.expenses += Math.abs(t.amount);
+        }
+        acc.balance = acc.income - acc.expenses;
+        return acc;
+      }, { income: 0, expenses: 0, balance: 0 });
+      
+      await generateTransactionsCSV({
+        transactions: exportTransactions,
+        period: dateRange,
+        totals,
+        currency
+      });
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      Alert.alert('Error', 'Failed to export CSV');
+    }
+  };
+
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -591,6 +704,21 @@ export default function Summary() {
           <Ionicons name="download-outline" size={24} color="#fff" />
           <Text style={styles.exportButtonText}>Export PDF</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.exportButton, 
+            { 
+              backgroundColor: filteredTotals ? theme.primary : '#cccccc',
+              opacity: filteredTotals ? 1 : 0.7
+            }
+          ]}
+          onPress={handleExportCSV}
+          disabled={!filteredTotals}
+        >
+          <Ionicons name="document-text-outline" size={24} color="#fff" />
+          <Text style={styles.exportButtonText}>Export CSV</Text>
+        </TouchableOpacity>
       </View>
 
       {filteredTotals && (
@@ -610,7 +738,7 @@ export default function Summary() {
             <View style={styles.totalItem}>
               <Text style={[styles.totalLabel, { color: theme.text.secondary }]}>Total Expenses</Text>
               <Text style={[styles.totalAmount, { color: '#F44336' }]}>
-                {formatAmount(filteredTotals.expenses)}
+                -{formatAmount(filteredTotals.expenses)}
               </Text>
             </View>
 

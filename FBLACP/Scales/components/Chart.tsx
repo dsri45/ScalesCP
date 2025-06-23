@@ -74,7 +74,8 @@ export default function Chart() {
           }}
           labels={({ datum }) => {
             const percentage = ((datum.amount / total) * 100).toFixed(0);
-            return `${percentage}%`;
+            const sign = datum.name === 'Expenses' ? '-' : '';
+            return `${sign}${percentage}%`;
           }}
           labelComponent={
             <VictoryLabel
@@ -97,7 +98,7 @@ export default function Chart() {
         />
       </View>
 
-      {/* Simplified Legend */}
+      {/* Enhanced Legend with Signs */}
       <View style={styles.legendContainer}>
         {data.map((item) => (
           <Pressable
@@ -113,7 +114,7 @@ export default function Chart() {
           >
             <View style={[styles.legendDot, { backgroundColor: item.color }]} />
             <Text style={[styles.legendText, { color: theme.text.primary }]}>
-              {item.name}
+              {item.name === 'Expenses' ? '-Expenses' : item.name}
             </Text>
           </Pressable>
         ))}
