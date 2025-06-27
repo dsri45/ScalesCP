@@ -219,26 +219,27 @@ export default function TransactionForm() {
             ]}
             onPress={() => setTransactionType('income')}
           >
-            <Ionicons 
-              name="arrow-up-circle" 
-              size={24} 
-              color={transactionType === 'income' 
-                ? TRANSACTION_COLORS.income.text.active 
-                : TRANSACTION_COLORS.income.text.inactive
-              } 
-              style={styles.typeIcon}
-            />
-            <Text style={[
-              styles.typeText,
-              { 
-                color: transactionType === 'income' 
+            <View style={styles.typeContent}>
+              <Ionicons 
+                name="arrow-up-circle" 
+                size={32}
+                color={transactionType === 'income' 
                   ? TRANSACTION_COLORS.income.text.active 
-                  : TRANSACTION_COLORS.income.text.inactive,
-                fontWeight: transactionType === 'income' ? '600' : '400'
-              }
-            ]}>
-              Income
-            </Text>
+                  : TRANSACTION_COLORS.income.text.inactive
+                } 
+              />
+              <Text style={[
+                styles.typeText,
+                { 
+                  color: transactionType === 'income' 
+                    ? TRANSACTION_COLORS.income.text.active 
+                    : TRANSACTION_COLORS.income.text.inactive,
+                  fontWeight: transactionType === 'income' ? '700' : '500'
+                }
+              ]}>
+                Income
+              </Text>
+            </View>
           </Pressable>
         </View>
 

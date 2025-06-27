@@ -8,7 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTransactions } from '../../contexts/TransactionContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { Transaction } from '../../services/database'; 
+import { Transaction } from '../../services/database';
+import CategoryBarChart from '../../components/CategoryBarChart';
+import SummaryBarChart from '../../components/SummaryBarChart';
+import { generatePDFBarChartSVG } from '../../utils/chartUtils';
 
 interface GeneratePDFProps {
   transactions: Transaction[];
@@ -31,12 +34,58 @@ export const generateTransactionsPDF = async ({
   currency
 }: GeneratePDFProps) => {
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    const formattedAmount = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency.code,
       currencyDisplay: 'symbol',
     }).format(Math.abs(amount));
+    
+    // Put negative sign before the currency symbol
+    return amount < 0 ? `-${formattedAmount}` : formattedAmount;
   };
+
+  // Process category data for charts
+  const expenseCategoryTotals: { [key: string]: number } = {};
+  const incomeCategoryTotals: { [key: string]: number } = {};
+
+  transactions.forEach(t => {
+    if (t.amount < 0) {
+      const category = t.category || 'Uncategorized';
+      if (!expenseCategoryTotals[category]) {
+        expenseCategoryTotals[category] = 0;
+      }
+      expenseCategoryTotals[category] += Math.abs(t.amount);
+    } else if (t.amount > 0) {
+      const category = t.category || 'Uncategorized';
+      if (!incomeCategoryTotals[category]) {
+        incomeCategoryTotals[category] = 0;
+      }
+      incomeCategoryTotals[category] += t.amount;
+    }
+  });
+
+  const sortedExpenseCategories = Object.entries(expenseCategoryTotals)
+    .sort(([_, amountA], [__, amountB]) => amountB - amountA)
+    .slice(0, 8);
+
+  const sortedIncomeCategories = Object.entries(incomeCategoryTotals)
+    .sort(([_, amountA], [__, amountB]) => amountB - amountA)
+    .slice(0, 8);
+
+  const expenseChartData = sortedExpenseCategories.map(([category, amount]) => ({
+    category,
+    amount
+  }));
+
+  const incomeChartData = sortedIncomeCategories.map(([category, amount]) => ({
+    category,
+    amount
+  }));
+
+  const expenseChartSvg = generatePDFBarChartSVG(expenseChartData, currency.code);
+  const incomeChartSvg = sortedIncomeCategories.length > 0
+    ? generatePDFBarChartSVG(incomeChartData, currency.code, true)
+    : '';
 
   try {
     const htmlContent = `
@@ -48,9 +97,20 @@ export const generateTransactionsPDF = async ({
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             h1 { color: #333; }
+            h2 { color: #333; margin-top: 30px; margin-bottom: 15px; }
             .summary { margin: 20px 0; }
             .total { font-size: 1.2em; margin: 10px 0; }
-            table { width: 100%; border-collapse: collapse; }
+            .chart-container { 
+              text-align: center; 
+              margin: 20px 0; 
+              page-break-inside: avoid;
+              overflow: hidden;
+            }
+            .chart-container svg {
+              max-width: 100%;
+              height: auto;
+            }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
             .positive { color: #4CAF50; }
             .negative { color: #F44336; }
@@ -61,11 +121,25 @@ export const generateTransactionsPDF = async ({
           
           <div class="summary">
             <div class="total">Total Income: <span class="positive">${formatAmount(totals.income)}</span></div>
-            <div class="total">Total Expenses: <span class="negative">-${formatAmount(totals.expenses)}</span></div>
+            <div class="total">Total Expenses: <span class="negative">${formatAmount(totals.expenses)}</span></div>
             <div class="total">Balance: <span class="${totals.balance >= 0 ? 'positive' : 'negative'}">
-              ${totals.balance >= 0 ? '' : '-'}${formatAmount(Math.abs(totals.balance))}
+              ${formatAmount(totals.balance)}
             </span></div>
           </div>
+
+          ${incomeChartSvg ? `
+          <h2>Income Categories</h2>
+          <div class="chart-container">
+            ${incomeChartSvg}
+          </div>
+          ` : ''}
+
+          ${expenseChartSvg ? `
+          <h2>Expense Categories</h2>
+          <div class="chart-container">
+            ${expenseChartSvg}
+          </div>
+          ` : ''}
 
           <h2>Transaction Details</h2>
           <table>
@@ -84,7 +158,7 @@ export const generateTransactionsPDF = async ({
                   <td>${t.title}</td>
                   <td>${t.category}</td>
                   <td class="${t.amount >= 0 ? 'positive' : 'negative'}">
-                    ${t.amount >= 0 ? '' : '-'}${formatAmount(Math.abs(t.amount))}
+                    ${formatAmount(t.amount)}
                   </td>
                 </tr>
               `).join('')}
@@ -122,11 +196,14 @@ export const generateTransactionsCSV = async ({
   currency
 }: GeneratePDFProps) => {
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    const formattedAmount = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency.code,
       currencyDisplay: 'symbol',
     }).format(Math.abs(amount));
+    
+    // Put negative sign before the currency symbol
+    return amount < 0 ? `-${formattedAmount}` : formattedAmount;
   };
 
   const formatAmountForCSV = (amount: number) => {
@@ -207,6 +284,15 @@ export default function Summary() {
     balance: number;
   } | null>(null);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [categoryData, setCategoryData] = useState<Array<{
+    category: string;
+    amount: number;
+    type: 'income' | 'expense';
+  }>>([]);
+  const [summaryChartData, setSummaryChartData] = useState<Array<{
+    income: number;
+    expenses: number;
+  }>>([]);
   
   // Force a re-render when dates change
   const [reportKey, setReportKey] = useState(0);
@@ -580,6 +666,148 @@ export default function Summary() {
     console.log('Final filtered transactions:', filtered.length);
     console.log('Calculated Totals:', totals);
 
+    // Process category data for the chart
+    const expenseCategoryTotals: { [key: string]: number } = {};
+    const incomeCategoryTotals: { [key: string]: number } = {};
+
+    filtered.forEach(t => {
+      if (t.amount < 0) {
+        const category = t.category || 'Uncategorized';
+        if (!expenseCategoryTotals[category]) {
+          expenseCategoryTotals[category] = 0;
+        }
+        expenseCategoryTotals[category] += Math.abs(t.amount);
+      } else if (t.amount > 0) {
+        const category = t.category || 'Uncategorized';
+        if (!incomeCategoryTotals[category]) {
+          incomeCategoryTotals[category] = 0;
+        }
+        incomeCategoryTotals[category] += t.amount;
+      }
+    });
+
+    const sortedExpenseCategories = Object.entries(expenseCategoryTotals)
+      .sort(([_, amountA], [__, amountB]) => amountB - amountA)
+      .slice(0, 8);
+
+    const sortedIncomeCategories = Object.entries(incomeCategoryTotals)
+      .sort(([_, amountA], [__, amountB]) => amountB - amountA)
+      .slice(0, 8);
+
+    const expenseChartData = sortedExpenseCategories.map(([category, amount]) => ({
+      category,
+      amount
+    }));
+
+    const incomeChartData = sortedIncomeCategories.map(([category, amount]) => ({
+      category,
+      amount
+    }));
+
+    const incomeCategoryDataArray = Object.entries(incomeCategoryTotals).map(([category, amount]) => ({
+      category,
+      amount,
+      type: 'income' as const
+    }));
+
+    const expenseCategoryDataArray = Object.entries(expenseCategoryTotals).map(([category, amount]) => ({
+      category,
+      amount,
+      type: 'expense' as const
+    }));
+
+    const significantIncomeCategories = incomeCategoryDataArray.filter(
+      item => item.amount >= (totals.income * 0.01)
+    );
+    const significantExpenseCategories = expenseCategoryDataArray.filter(
+      item => item.amount >= (totals.expenses * 0.01)
+    );
+
+    if (incomeCategoryDataArray.length > significantIncomeCategories.length) {
+      const otherAmount = incomeCategoryDataArray
+        .filter(item => item.amount < (totals.income * 0.01))
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      if (otherAmount > 0) {
+        significantIncomeCategories.push({
+          category: 'Other Income',
+          amount: otherAmount,
+          type: 'income' as const
+        });
+      }
+    }
+
+    if (expenseCategoryDataArray.length > significantExpenseCategories.length) {
+      const otherAmount = expenseCategoryDataArray
+        .filter(item => item.amount < (totals.expenses * 0.01))
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      if (otherAmount > 0) {
+        significantExpenseCategories.push({
+          category: 'Other Expenses',
+          amount: otherAmount,
+          type: 'expense' as const
+        });
+      }
+    }
+
+    setCategoryData([...significantIncomeCategories, ...significantExpenseCategories]);
+
+    // Process summary chart data (daily breakdown)
+    const daysDiff = Math.ceil((normalizedEndDate.getTime() - normalizedStartDate.getTime()) / (1000 * 60 * 60 * 24));
+    const summaryData: Array<{ income: number; expenses: number }> = [];
+    
+    if (daysDiff <= 31) {
+      // Daily breakdown for up to 31 days
+      for (let i = 0; i <= daysDiff; i++) {
+        const currentDate = new Date(normalizedStartDate);
+        currentDate.setDate(currentDate.getDate() + i);
+        
+        const dayTransactions = filtered.filter(t => {
+          const transactionDate = normalizeDate(t.date);
+          return transactionDate.getTime() === currentDate.getTime();
+        });
+        
+        const dayTotals = dayTransactions.reduce((acc, t) => {
+          if (t.amount > 0) {
+            acc.income += t.amount;
+          } else {
+            acc.expenses += Math.abs(t.amount);
+          }
+          return acc;
+        }, { income: 0, expenses: 0 });
+        
+        summaryData.push(dayTotals);
+      }
+    } else {
+      // Weekly breakdown for longer periods
+      const weeksDiff = Math.ceil(daysDiff / 7);
+      for (let i = 0; i < weeksDiff; i++) {
+        const weekStart = new Date(normalizedStartDate);
+        weekStart.setDate(weekStart.getDate() + (i * 7));
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        const weekTransactions = filtered.filter(t => {
+          const transactionDate = normalizeDate(t.date);
+          return transactionDate >= weekStart && transactionDate <= weekEnd;
+        });
+        
+        const weekTotals = weekTransactions.reduce((acc, t) => {
+          if (t.amount > 0) {
+            acc.income += t.amount;
+          } else {
+            acc.expenses += Math.abs(t.amount);
+          }
+          return acc;
+        }, { income: 0, expenses: 0 });
+        
+        summaryData.push(weekTotals);
+      }
+    }
+    
+    setSummaryChartData(summaryData);
+
     // Update state with completely new objects to ensure React detects changes
     setFilteredTotals({...totals});
     setFilteredTransactions([...filtered]);
@@ -662,11 +890,14 @@ export default function Summary() {
   };
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    const formattedAmount = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency.code,
       currencyDisplay: 'symbol',
     }).format(Math.abs(amount));
+    
+    // Put negative sign before the currency symbol
+    return amount < 0 ? `-${formattedAmount}` : formattedAmount;
   };
 
   return (
@@ -738,7 +969,7 @@ export default function Summary() {
             <View style={styles.totalItem}>
               <Text style={[styles.totalLabel, { color: theme.text.secondary }]}>Total Expenses</Text>
               <Text style={[styles.totalAmount, { color: '#F44336' }]}>
-                -{formatAmount(filteredTotals.expenses)}
+                {formatAmount(filteredTotals.expenses)}
               </Text>
             </View>
 
@@ -747,8 +978,7 @@ export default function Summary() {
               <Text style={[styles.totalAmount, { 
                 color: filteredTotals.balance >= 0 ? '#4CAF50' : '#F44336' 
               }]}>
-                {filteredTotals.balance >= 0 ? '' : '-'}
-                {formatAmount(Math.abs(filteredTotals.balance))}
+                {formatAmount(filteredTotals.balance)}
               </Text>
             </View>
           </View>
@@ -776,8 +1006,7 @@ export default function Summary() {
                     <Text style={[styles.transactionAmount, { 
                       color: t.amount >= 0 ? '#4CAF50' : '#F44336' 
                     }]}>
-                      {t.amount >= 0 ? '' : '-'}
-                      {formatAmount(Math.abs(t.amount))}
+                      {formatAmount(t.amount)}
                     </Text>
                     <Text style={[styles.transactionDate, { color: theme.text.secondary }]}>
                       {new Date(t.date).toLocaleDateString()}
@@ -787,6 +1016,20 @@ export default function Summary() {
               ))
             )}
           </View>
+
+          {categoryData.length > 0 && (
+            <CategoryBarChart 
+              data={categoryData} 
+              period={`${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`}
+            />
+          )}
+
+          {summaryChartData.length > 0 && (
+            <SummaryBarChart 
+              data={summaryChartData} 
+              period={`${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`}
+            />
+          )}
         </View>
       )}
     </ScrollView>

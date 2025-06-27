@@ -37,6 +37,7 @@ export default function TransactionItem({
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
   const SWIPE_THRESHOLD = 5;
 
   const handleTouchStart = (event: GestureResponderEvent) => {
@@ -62,6 +63,12 @@ export default function TransactionItem({
 
   const isIncome = amount > 0;
   
+  // Helper function to format amount with negative sign before currency symbol
+  const formatAmount = (amount: number) => {
+    const sign = isIncome ? '+' : '-';
+    return `${sign}${currency.symbol}${Math.abs(amount).toFixed(2)}`;
+  };
+
   // Get appropriate background color based on transaction type and theme
   const getBgColor = () => {
     if (isIncome) {
@@ -150,7 +157,7 @@ export default function TransactionItem({
             styles.amount,
             { color: isIncome ? theme.income : theme.expense }
           ]}>
-            {isIncome ? '+' : '-'}{currency.symbol}{Math.abs(amount).toFixed(2)}
+            {formatAmount(amount)}
           </Text>
           <Text style={[
             styles.date,

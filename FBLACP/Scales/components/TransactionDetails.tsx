@@ -19,6 +19,12 @@ export default function TransactionDetails({ transaction, onClose }: Transaction
   const colorScheme = isIncome ? COLORS.income : COLORS.expense;
   const colors = isDarkMode ? colorScheme.dark : colorScheme.light;
 
+  // Helper function to format amount with negative sign before currency symbol
+  const formatAmount = (amount: number) => {
+    const sign = isIncome ? '+' : '-';
+    return `${sign}${currency.symbol}${Math.abs(amount).toFixed(2)}`;
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString(undefined, {
@@ -50,7 +56,7 @@ export default function TransactionDetails({ transaction, onClose }: Transaction
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={[styles.amount, { color: colors.text }]}>
-            {isIncome ? '+' : '-'}{currency.symbol}{Math.abs(transaction.amount).toFixed(2)}
+            {formatAmount(transaction.amount)}
           </Text>
           <Text style={[styles.title, { color: theme.text.primary }]}>
             {transaction.title}

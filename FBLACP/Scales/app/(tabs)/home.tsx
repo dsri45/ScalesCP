@@ -355,7 +355,7 @@ export default function Home() {
         <View style={styles.balanceContainer}>
           <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.9)' }]}>Current Balance</Text>
           <Text style={[styles.balanceAmount, { color: '#fff' }]}>
-            {currency.symbol}{totals.balance.toFixed(2)}
+            {totals.balance < 0 ? '-' : ''}{currency.symbol}{Math.abs(totals.balance).toFixed(2)}
           </Text>
         </View>
         
@@ -406,7 +406,7 @@ export default function Home() {
           <Ionicons name="arrow-up-circle" size={28} color={theme.income} />
           <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Income</Text>
           <Text style={[styles.statAmount, { color: theme.text.primary }]}>
-            {currency.symbol}{totals.income.toFixed(2)}
+            {totals.income < 0 ? '-' : ''}{currency.symbol}{Math.abs(totals.income).toFixed(2)}
           </Text>
         </View>
         <View style={[styles.statCard, { 

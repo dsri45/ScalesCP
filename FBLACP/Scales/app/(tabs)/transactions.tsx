@@ -22,11 +22,14 @@ type Transaction = {
 const { width } = Dimensions.get('window');
 
 const formatAmount = (amount: number, currency: { symbol: string, code: string }) => {
-  return new Intl.NumberFormat('en-US', {
+  const formattedAmount = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency.code,
     currencyDisplay: 'symbol',
   }).format(Math.abs(amount));
+  
+  // Put negative sign before the currency symbol
+  return amount < 0 ? `-${formattedAmount}` : formattedAmount;
 };
 
 const typeIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -160,8 +163,7 @@ export default function Transactions() {
             <Text style={[styles.balanceAmount, { 
               color: totals.balance >= 0 ? '#4CAF50' : '#F44336' 
             }]}>
-              {totals.balance >= 0 ? '' : '-'}
-              {formatAmount(Math.abs(totals.balance), currency)}
+              {formatAmount(totals.balance, currency)}
             </Text>
           </View>
 
@@ -188,8 +190,8 @@ export default function Transactions() {
                 <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Expenses</Text>
               </View>
               <Text style={[styles.statAmount, { color: '#F44336' }]}>
-                -{formatAmount(
-                  Math.abs(transactions.reduce((sum, t) => sum + (t.amount < 0 ? t.amount : 0), 0)),
+                {formatAmount(
+                  transactions.reduce((sum, t) => sum + (t.amount < 0 ? t.amount : 0), 0),
                   currency
                 )}
               </Text>
