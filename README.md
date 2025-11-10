@@ -1,30 +1,14 @@
- Scales - Personal Finance Tracker
+ # Scales - Personal Finance Tracker
 
 A comprehensive personal finance tracking app built with React Native and Expo.
 
 ## Features
-
-### 💰 Real-Time Currency Exchange
-- **Automatic Conversion**: The app automatically fetches real-time exchange rates when you change currencies
-- **No Manual Input Required**: Users no longer need to manually enter conversion rates
-- **Smart Caching**: Exchange rates are cached for 24 hours to reduce API calls
-- **Fallback System**: If the API is unavailable, the app gracefully falls back to manual conversion
-- **Premium API**: Uses ExchangeRate-API with API key for reliable service and higher rate limits
-
-### 🔄 Currency Conversion Process
-1. **Select Currency**: Choose a new currency from the currency selection screen
-2. **Automatic Fetch**: App automatically fetches the latest exchange rate
-3. **Transaction Conversion**: All existing transactions are converted to the new currency
-4. **Success Notification**: Shows the conversion rate used for transparency
-
-### 📱 Other Features
 - Track income and expenses with detailed categorization
 - Set and monitor savings goals
 - Generate financial reports and export to PDF/CSV
+- Automated receipt scanning and storage
+- Real-time currency switch
 - Dark/Light theme support
-- Receipt scanning and storage
-- Recurring transaction support
-- Real-time balance calculations
 
 ## Setup
 
@@ -127,10 +111,6 @@ If you encounter issues with the receipt scanning feature:
 - Make sure the receipt is well-lit and in focus
 - If the app fails to extract the amount, try scanning the receipt again or enter the amount manually
 
-## Other Features
-
-[Add information about other features of the app here]
-
 ## Real-Time Currency Exchange Rates
 
 The app now supports real-time currency exchange rates using the **ExchangeRate-API (Free Version)**. This eliminates the need for users to manually enter conversion rates.
@@ -155,8 +135,3 @@ The app now supports real-time currency exchange rates using the **ExchangeRate-
 4. Rates are cached for 24 hours to minimize API calls
 5. If both APIs fail, users can still enter manual conversion rates
 
-### Benefits of Free Version:
-- No API key required for basic usage
-- Reliable service with good uptime
-- Automatic fallback to alternative free API
-- Cost-effective solution for personal finance apps 
